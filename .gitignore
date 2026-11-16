@@ -5,3 +5,8 @@ build/
 local.properties
 *.iml
 captures/
+
+# Signing secrets - never commit
+keystore.properties
+*.jks
+*.keystore

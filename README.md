@@ -30,7 +30,18 @@ Requirements: JDK 17 and the Android SDK (platform 35). Android Studio works out
 # APK: app/build/outputs/apk/release/app-release.apk
 ```
 
-The release build is signed with the local debug key so it can be sideloaded. Set up your own signing config before distributing it.
+### Release signing
+
+Release builds are signed with the key described in a `keystore.properties` file in the project root. This file is git-ignored and must never be committed:
+
+```properties
+storeFile=C:/path/to/your-release.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+If the file is missing, release builds fall back to your local debug key. That's fine for testing, but those APKs can't install over the official releases.
 
 Off-device screenshot tests (Robolectric + Roborazzi) render the main screens to `app/build/screens/`:
 
