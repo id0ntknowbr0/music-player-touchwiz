@@ -52,3 +52,11 @@ Off-device screenshot tests (Robolectric + Roborazzi) render the main screens to
 This is an unofficial fan project, not affiliated with or endorsed by Samsung.
 
 The launcher icon and the TouchWiz interface graphics (`app/src/main/res/drawable-*/tw_*.png`) were taken from Samsung's original Music Player APK. They are Samsung's copyrighted property and are included only to recreate the original look. All other code is original.
+
+## License
+
+The source code is released under the [MIT License](LICENSE). The license covers the original code only. It does **not** cover the Samsung graphics described above, which remain Samsung's property.
+
+## Download
+
+Get the latest APK from the [Releases](../../releases) page. It installs on Android 11 or newer; you'll need to allow installing from unknown sources.
