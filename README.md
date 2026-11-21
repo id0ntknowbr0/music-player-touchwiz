@@ -4,22 +4,65 @@ A from-scratch Kotlin rebuild of the classic Samsung TouchWiz music player (Gala
 
 The original app's behaviour, layout and colours were studied from its APK, and the app was rewritten with Jetpack Compose and Media3. It contains no Samsung code.
 
+<p align="center">
+  <img src="docs/screenshots/songs.png" width="200" alt="Songs tab with the A–Z index bar and mini player">
+  <img src="docs/screenshots/now_playing.png" width="200" alt="Now Playing screen">
+  <img src="docs/screenshots/lyrics.png" width="200" alt="Synced lyrics over the album art">
+  <img src="docs/screenshots/music_square.png" width="200" alt="Music Square mood grid">
+</p>
+<p align="center">
+  <img src="docs/screenshots/albums.png" width="200" alt="Albums grid">
+  <img src="docs/screenshots/settings.png" width="200" alt="Settings">
+  <img src="docs/screenshots/widgets.png" width="410" alt="Home screen widgets: 4x2, 4x1 and 1x1">
+</p>
+
+<sub>Screenshots use a made-up demo library (invented songs and artists, generated cover art).</sub>
+
 ## Features
 
-- **Library:** TouchWiz icon tabs (Songs, Playlists, Albums, Artists, Genres, Folders), large song rows, a **# A–Z index bar** for jumping alphabetically, a shuffle row and search
-- **Now Playing:** the TouchWiz layout with shuffle / repeat / A-B repeat, a seek bar, press-and-hold fast scrub, and a queue view
-- **Mini player** at the bottom of the library
-- **SoundAlive:** 13 presets plus a 7-band user EQ, with bass and 3D sliders
-- **Play speed** (0.5x–2.0x) and **Music auto off** (sleep timer)
-- **Playlists:** create, rename and delete, plus Most played, Recently played and Recently added
-- **Edit track info:** rename the file and edit the title, artist, album, genre, year and **cover art** (one song or a whole album). Changes are written into the file itself.
+**Library**
+- TouchWiz icon tabs: Songs, Playlists, Albums, Artists, Genres, Folders, plus optional **Composers** and **Music Square**
+- Large song rows, a **# A–Z index bar** with the TouchWiz letter bubble (also shown while flinging long lists), a shuffle row and search
+- Updates by itself when songs are added or removed
+- **Settings:** choose tabs, folders to scan, hide short tracks (voice notes, ringtones), default sort order
+
+**Music Square**
+- The S4's 5×5 mood grid (calm ↔ exciting, passionate ↔ joyful): tap a square or drag across several to make a playlist for your mood
+- Songs are placed by genre and BPM tags; an optional on-device analysis (tempo, level, brightness) places the rest. Nothing leaves the phone.
+
+**Now Playing**
+- The TouchWiz layout with shuffle, repeat, A-B repeat, seek bar, press-and-hold fast scrub, and a queue view
+- **Favourites** heart, synced **lyrics over the album art**, and an output indicator that opens Android's output switcher
+- Mini player at the bottom of the library
+
+**Sound**
+- **SoundAlive:** 13 presets, a 10-band user EQ with preamp and left/right balance, bass and 3D
+- **Smart volume:** evens out loudness using ReplayGain tags (track or album)
+- **Crossfade** (1–12 s) or gapless playback, and **skip silence**
+- Optional separate SoundAlive setting per output (speaker, headphones, each Bluetooth device)
+- **Play speed** (0.5x–2.0x)
+- **Music auto off** (sleep timer) that fades out, or stops after the current song
+
+**Playlists**
+- Create, rename and delete, plus Favourites, Most played, Recently played and Recently added
+- **Import and export `.m3u` / `.m3u8`**: playlists from other players and PCs are matched to your songs
+
+**Files**
+- **Edit track info:** file name, title, artist, album, genre, year and **cover art** (one song or a whole album), written into the file itself
+- **Set as** ringtone, notification or alarm sound, with a start point and length (MP3 and AAC are trimmed without re-encoding)
 - **Delete** songs, albums and folders (through Android's own confirmation)
-- **Lyrics:** import `.lrc` / `.txt` files, read lyrics embedded in the file, or search online at [LRCLIB](https://lrclib.net). Online search only runs after the user agrees, and synced lyrics are highlighted line by line.
-- **Home screen widget**, in the classic TouchWiz style
-- **Background playback** through a Media3 `MediaSessionService`:
-  - notification, lock screen and Bluetooth/headset controls
-  - resumes the last queue
-  - asks once for the battery-optimisation exemption
+
+**Lyrics**
+- Import `.lrc` / `.txt` files, read lyrics embedded in the file, or search online at [LRCLIB](https://lrclib.net)
+- Online search only runs after you agree, and can be turned off in Settings
+
+**Everywhere else**
+- **Widgets** in the classic TouchWiz style: 4×1, 4×2 with large album art, and 1×1 play/pause
+- **Android Auto** and other media browsers: browse songs, albums, artists, playlists and recently played, and search; voice "play …" requests work too
+- Background playback with notification, lock screen and Bluetooth/headset controls; resumes the last queue
+- Optional **resume when headphones or Bluetooth connect**
+- Touch vibration on buttons, long-presses and seeking (can be turned off)
+- Ready to translate: all text is in `strings.xml`
 
 ## Building
 
@@ -43,26 +86,34 @@ keyPassword=...
 
 If the file is missing, release builds fall back to your local debug key. That's fine for testing, but those APKs can't install over the official releases.
 
-Off-device screenshot tests (Robolectric + Roborazzi) render the main screens to `app/build/screens/`:
+### Tests and screenshots
+
+Unit tests (playlist import, ReplayGain, MP3 trimming, Music Square) and off-device screenshot tests (Robolectric + Roborazzi) run on the PC:
 
 ```bash
 ./gradlew testDebugUnitTest
+```
+
+The screenshots in this README are rendered by `ShowcaseScreens` into `app/build/showcase/`:
+
+```bash
+./gradlew testDebugUnitTest --tests "*ShowcaseScreens*"
 ```
 
 ## Project layout
 
 | Path | Contents |
 |---|---|
-| `app/src/main/java/dev/s4music/player/data` | MediaStore library, playlists, play stats, tag/cover editing, lyrics |
-| `.../playback` | `PlaybackService` (Media3), SoundAlive effects, A-B repeat and sleep timer |
-| `.../widget` | Home screen widget |
-| `.../ui` | Compose screens: library, now playing, dialogs |
+| `app/src/main/java/dev/s4music/player/data` | MediaStore library, settings, playlists and `.m3u`, favourites, play stats, tag/cover editing, lyrics, Music Square analysis, ringtone maker |
+| `.../playback` | `PlaybackService` (Media3 library service and Android Auto browse tree), crossfade, SoundAlive effects, ReplayGain, output routes |
+| `.../widget` | Home screen widgets |
+| `.../ui` | Compose screens: library, now playing, Music Square, settings, dialogs |
 
 ## Disclaimer
 
 This is an unofficial fan project, not affiliated with or endorsed by Samsung.
 
-The launcher icon and the TouchWiz interface graphics (`app/src/main/res/drawable-*/tw_*.png`) were taken from Samsung's original Music Player APK. They are Samsung's copyrighted property and are included only to recreate the original look. All other code is original.
+The launcher icon and the TouchWiz interface graphics (`app/src/main/res/drawable-*/tw_*`) were taken from Samsung's original Music Player APK. They are Samsung's copyrighted property and are included only to recreate the original look. All other code is original.
 
 ## License
 

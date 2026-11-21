@@ -126,7 +126,7 @@ class ScreenshotTest {
             android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
         val ui = UiActions(app, PlayerViewModel(app))
         // Robolectric doesn't run App Startup, which normally initialises WorkManager.
-        androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder().build())
+        if (!androidx.work.WorkManager.isInitialized()) androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder().build())
         val genres = listOf("Metal", "Rock", "Pop", "Dance", "Ambient", "Jazz", "Blues", "Classical", "Reggae", "Pop",
             "Pop", "Rock", "Hip Hop", "Folk", "Disco", "House", "Soul", "Country", "Pop", "Dance")
         val songs = genres.mapIndexed { i, g ->

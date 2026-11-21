@@ -127,11 +127,17 @@ fun SongSort.indexKey(): ((Song) -> String)? = when (this) {
 }
 
 @Composable
-fun LibraryScreen(library: Library, loading: Boolean, playlists: List<Playlist>, currentId: Long?) {
+fun LibraryScreen(
+    library: Library,
+    loading: Boolean,
+    playlists: List<Playlist>,
+    currentId: Long?,
+    initialTab: LibraryTabId = LibraryTabId.SONGS,
+) {
     val ui = LocalUi.current
     val settings by AppSettings.settings.collectAsStateWithLifecycle()
     val tabs = settings.visibleTabs
-    var tabKey by rememberSaveable { mutableStateOf(LibraryTabId.SONGS.key) }
+    var tabKey by rememberSaveable { mutableStateOf(initialTab.key) }
     val tab = LibraryTabId.fromKey(tabKey)?.takeIf { it in tabs } ?: tabs.first()
 
     // Search + menu at the right of the "Shuffle" row (the S4 used its hardware menu key).
@@ -180,7 +186,7 @@ fun LibraryScreen(library: Library, loading: Boolean, playlists: List<Playlist>,
                     stringResource(R.string.no_composers), R.plurals.composers_count, actions) {
                     Screen.Songs(it.name, SongSource.Composer(it.key))
                 }
-                LibraryTabId.MUSIC_SQUARE -> MusicSquareTab(library, currentId, actions)
+                LibraryTabId.MUSIC_SQUARE -> MusicSquareTab(library, currentId, actions = actions)
             }
         }
     }

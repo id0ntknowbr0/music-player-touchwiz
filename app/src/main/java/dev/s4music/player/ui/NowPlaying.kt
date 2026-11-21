@@ -103,13 +103,13 @@ private val TimeBlue = Color(0xFF2D9BF0)
 
 /** Full-screen player, laid out like the TouchWiz Nature UX player. */
 @Composable
-fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
+fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit, startWithLyrics: Boolean = false) {
     val ui = LocalUi.current
     val vm = ui.player
     val context = LocalContext.current
     val audio = remember { context.getSystemService(AudioManager::class.java) }
     val song = ps.currentSongId?.let { library.byId[it] }
-    var panel by rememberSaveable { mutableStateOf(Panel.Art) }
+    var panel by rememberSaveable { mutableStateOf(if (startWithLyrics) Panel.Lyrics else Panel.Art) }
     val ab by PlaybackBridge.abRepeat.collectAsState()
     val sleepAt by PlaybackBridge.sleepAtElapsed.collectAsState()
     val sleepAfterCurrent by PlaybackBridge.sleepAfterCurrent.collectAsState()

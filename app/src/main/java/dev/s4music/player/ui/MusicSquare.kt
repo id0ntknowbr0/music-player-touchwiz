@@ -94,11 +94,16 @@ fun buildMoodGrid(songs: List<Song>, features: Map<Long, MoodFeatures>): MoodGri
  * playlist of the songs in them; the songs appear underneath.
  */
 @Composable
-fun MusicSquareTab(library: Library, currentId: Long?, actions: @Composable RowScope.() -> Unit) {
+fun MusicSquareTab(
+    library: Library,
+    currentId: Long?,
+    initialSelection: List<Int> = emptyList(),
+    actions: @Composable RowScope.() -> Unit,
+) {
     val context = LocalContext.current
     val features by MoodStore.features.collectAsStateWithLifecycle()
     val progress by remember { MoodWorker.analysisProgress(context) }.collectAsStateWithLifecycle(null)
-    var selected by rememberSaveable { mutableStateOf(listOf<Int>()) }
+    var selected by rememberSaveable { mutableStateOf(initialSelection) }
     val grid = remember(library.songs, features) { buildMoodGrid(library.songs, features) }
     val songs = remember(grid, selected) {
         selected.sorted().flatMap { grid.cells[it].orEmpty() }.sortedBy { it.title.lowercase() }

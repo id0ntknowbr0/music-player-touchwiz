@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The TouchWiz widget background (tw_w_bg) without the 4x1 layout's built-in dividers,
+     for the 4x2 and 1x1 widgets. Colours sampled from tw_w_bg. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FF707377" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    <item android:top="1dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:endColor="#FF35353B"
+                android:startColor="#FF46494D"
+                android:type="linear" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+</layer-list>
