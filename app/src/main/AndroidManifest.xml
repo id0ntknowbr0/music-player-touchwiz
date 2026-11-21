@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Library access: READ_MEDIA_AUDIO on Android 13+, READ_EXTERNAL_STORAGE on 11-12 -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
@@ -16,6 +17,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Lets the user exempt the app from battery optimisation so playback isn't killed -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- "Set as" ringtone / notification / alarm; the user grants it in system settings -->
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".S4MusicApplication"

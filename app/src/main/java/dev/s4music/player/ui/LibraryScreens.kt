@@ -45,8 +45,10 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.Piano
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -91,14 +93,21 @@ import dev.s4music.player.data.Song
 import dev.s4music.player.data.SongGroup
 import dev.s4music.player.ui.theme.S4Colors
 
+/** The original TouchWiz tab bitmap, or null for tabs drawn with a vector icon ([vectorIcon]). */
 @DrawableRes
-private fun LibraryTabId.icon(): Int = when (this) {
+private fun LibraryTabId.icon(): Int? = when (this) {
     LibraryTabId.SONGS -> R.drawable.tw_tab_songs
     LibraryTabId.PLAYLISTS -> R.drawable.tw_tab_playlists
     LibraryTabId.ALBUMS -> R.drawable.tw_tab_albums
     LibraryTabId.ARTISTS -> R.drawable.tw_tab_artists
     LibraryTabId.GENRES -> R.drawable.tw_tab_genres
     LibraryTabId.FOLDERS -> R.drawable.tw_tab_folders
+    LibraryTabId.COMPOSERS, LibraryTabId.MUSIC_SQUARE -> null
+}
+
+private fun LibraryTabId.vectorIcon() = when (this) {
+    LibraryTabId.MUSIC_SQUARE -> Icons.Default.GridView
+    else -> Icons.Default.Piano
 }
 
 private val TabSelected = Brush.verticalGradient(listOf(Color(0xFF4F8DBC), Color(0xFF3E76A1)))
@@ -167,6 +176,11 @@ fun LibraryScreen(library: Library, loading: Boolean, playlists: List<Playlist>,
                     R.plurals.folders_count, actions) {
                     Screen.Songs(it.name, SongSource.Folder(it.key))
                 }
+                LibraryTabId.COMPOSERS -> GroupsTab(library.composers, Icons.Default.Piano,
+                    stringResource(R.string.no_composers), R.plurals.composers_count, actions) {
+                    Screen.Songs(it.name, SongSource.Composer(it.key))
+                }
+                LibraryTabId.MUSIC_SQUARE -> MusicSquareTab(library, currentId, actions)
             }
         }
     }
@@ -200,7 +214,13 @@ private fun TwTabBar(tabs: List<LibraryTabId>, selectedTab: LibraryTabId, onSele
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Image(painterResource(t.icon()), null, Modifier.size(36.dp), alpha = if (isSel) 1f else 0.85f)
+                        val bitmap = t.icon()
+                        if (bitmap != null) {
+                            Image(painterResource(bitmap), null, Modifier.size(36.dp), alpha = if (isSel) 1f else 0.85f)
+                        } else {
+                            Icon(t.vectorIcon(), null, Modifier.size(34.dp),
+                                tint = Color(0xFFE8EEF3).copy(alpha = if (isSel) 1f else 0.85f))
+                        }
                         Text(stringResource(t.labelRes()), color = Color.White, fontSize = 15.sp, maxLines = 1)
                     }
                     if (i < tabs.lastIndex) Spacer(Modifier.width(TabBorderWidth).fillMaxHeight())
@@ -460,7 +480,7 @@ fun SongsScreen(
             songs, currentId,
             indexKeyOf = when (source) {
                 is SongSource.Artist -> { s -> s.album }   // artist pages are ordered by album
-                is SongSource.Genre, is SongSource.Folder -> sort.indexKey()
+                is SongSource.Genre, is SongSource.Folder, is SongSource.Composer -> sort.indexKey()
                 else -> null
             },
             header = header,
@@ -489,7 +509,7 @@ fun SongsScreen(
                                 else -> emptyList()
                             },
                             allowDelete = source is SongSource.Album || source is SongSource.Artist ||
-                                source is SongSource.Genre || source is SongSource.Folder,
+                                source is SongSource.Genre || source is SongSource.Folder || source is SongSource.Composer,
                         ),
                         tint = Color(0xFFD0D0D0),
                     )

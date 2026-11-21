@@ -37,6 +37,13 @@
     <string name="tab_artists">Artists</string>
     <string name="tab_genres">Genres</string>
     <string name="tab_folders">Folders</string>
+    <string name="tab_composers">Composers</string>
+    <string name="tab_music_square">Music square</string>
+    <string name="no_composers">No composers. Songs appear here when their files have a composer tag.</string>
+    <plurals name="composers_count">
+        <item quantity="one">%d composer</item>
+        <item quantity="other">%d composers</item>
+    </plurals>
 
     <!-- Menus -->
     <string name="search">Search</string>
@@ -243,6 +250,59 @@
     <string name="widget_tap_to_resume">Tap play to resume</string>
     <string name="widget_tap_to_play">Tap to play</string>
 
+    <!-- Music square -->
+    <string name="square_passionate">Passionate</string>
+    <string name="square_joyful">Joyful</string>
+    <string name="square_calm">Calm</string>
+    <string name="square_exciting">Exciting</string>
+    <string name="square_description">Music square mood grid. Tap or drag across squares to choose songs.</string>
+    <string name="square_hint">Tap a square, or drag across several, to make a playlist for your mood.</string>
+    <plurals name="square_selected">
+        <item quantity="one">%d song matches</item>
+        <item quantity="other">%d songs match</item>
+    </plurals>
+    <plurals name="square_unclassified">
+        <item quantity="one">%d song has no genre or tempo yet, so it isn’t placed.</item>
+        <item quantity="other">%d songs have no genre or tempo yet, so they aren’t placed.</item>
+    </plurals>
+    <plurals name="square_analyse">
+        <item quantity="one">Analyse %d song for better results</item>
+        <item quantity="other">Analyse %d songs for better results</item>
+    </plurals>
+    <string name="square_analysing">Analysing songs… %1$d of %2$d</string>
+    <string name="square_analysis_waiting">Analysis will start when the battery isn’t low…</string>
+    <string name="square_stop">Stop</string>
+
+    <!-- Set as -->
+    <string name="set_as">Set as</string>
+    <string name="set_as_ringtone">Phone ringtone</string>
+    <string name="set_as_notification">Notification sound</string>
+    <string name="set_as_alarm">Alarm sound</string>
+    <string name="set_as_start">Start at %1$s</string>
+    <string name="set_as_length">Length</string>
+    <string name="set_as_to_end">To end</string>
+    <plurals name="seconds_short">
+        <item quantity="one">%d s</item>
+        <item quantity="other">%d s</item>
+    </plurals>
+    <string name="set_as_preview">Preview</string>
+    <string name="set_as_stop_preview">Stop preview</string>
+    <string name="set_as_whole_song">Trimming works for MP3 and AAC (.m4a) files. This song will be used whole.</string>
+    <string name="set_as_confirm">Set</string>
+    <string name="set_as_done">%1$s set</string>
+    <string name="set_as_failed">Couldn’t set the sound</string>
+    <string name="set_as_permission_title">Allow changing sounds?</string>
+    <string name="set_as_permission_message">To change your phone’s ringtone, notification or alarm sound, Android needs you to allow Music Player to “Modify system settings”. Turn it on in the next screen, then come back.</string>
+    <string name="set_as_permission_denied">Permission not given, so the sound wasn’t changed</string>
+    <string name="open_settings">Open settings</string>
+
+    <!-- Output -->
+    <string name="output_speaker">Phone speaker</string>
+    <string name="output_wired">Headphones</string>
+    <string name="output_bluetooth">Bluetooth</string>
+    <string name="output_usb">USB audio</string>
+    <string name="output_choose">Choose where music plays (now: %1$s)</string>
+
     <!-- Settings -->
     <string name="settings_section_library">Library</string>
     <string name="settings_tabs">Tabs</string>
@@ -277,6 +337,10 @@
     <string name="settings_crossfade_hint">Fades each song into the next. Turn it off for live and concept albums that should play without gaps.</string>
     <string name="settings_skip_silence">Skip silence</string>
     <string name="settings_skip_silence_summary">Skips silent parts within and between songs.</string>
+    <string name="settings_auto_resume">Resume when connected</string>
+    <string name="settings_auto_resume_summary">Starts playing when headphones or Bluetooth audio connect while music is paused.</string>
+    <string name="settings_sound_per_output">SoundAlive per output</string>
+    <string name="settings_sound_per_output_summary">Remembers a separate SoundAlive setting for the speaker, headphones and each Bluetooth device.</string>
     <string name="settings_section_lyrics">Lyrics</string>
     <string name="settings_lyrics_online">Search lyrics online</string>
     <string name="settings_lyrics_online_summary">Lets the lyrics screen look up lyrics on lrclib.net. Only the track’s title, artist, album and length are sent, and only when you tap “Search online”.</string>

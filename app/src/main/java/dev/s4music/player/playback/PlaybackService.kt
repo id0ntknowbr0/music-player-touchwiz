@@ -144,6 +144,30 @@ class PlaybackService : MediaSessionService() {
             }
         }
 
+        // Output changes: SoundAlive per output, and "Resume when connected".
+        scope.launch {
+            var previous: OutputRoute? = null
+            OutputRoutes.current.collect { route ->
+                val before = previous
+                previous = route
+                if (before == null || before.key == route.key) return@collect
+                if (AppSettings.current.soundPerOutput) {
+                    PlaybackBridge.saveProfile(before.key)
+                    PlaybackBridge.loadProfile(route.key)?.let { PlaybackBridge.setSoundAlive(it) }
+                }
+                val connected = before.kind == OutputKind.SPEAKER && route.kind != OutputKind.SPEAKER
+                if (connected && AppSettings.current.autoResume && !player.playWhenReady && player.mediaItemCount > 0) {
+                    // Bluetooth reports the device a moment before audio is routed to it.
+                    if (route.kind == OutputKind.BLUETOOTH) delay(1_500)
+                    if (OutputRoutes.current.value.key == route.key && !player.playWhenReady) {
+                        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+                        if (player.playbackState == Player.STATE_ENDED) player.seekToDefaultPosition()
+                        player.play()
+                    }
+                }
+            }
+        }
+
         crossfader = Crossfader(
             player = player,
             scope = scope,

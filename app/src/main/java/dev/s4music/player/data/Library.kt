@@ -25,6 +25,8 @@ data class Song(
     val path: String,
     /** File name including extension, e.g. "Track 01.mp3". */
     val displayName: String,
+    /** Composer tag; empty when the file has none. */
+    val composer: String = "",
 ) {
     val uri: Uri get() = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 }
@@ -41,6 +43,8 @@ data class Library(
     val artists: List<Artist>,
     val genres: List<SongGroup>,
     val folders: List<SongGroup>,
+    /** Songs grouped by composer; songs without a composer tag aren't listed. */
+    val composers: List<SongGroup> = emptyList(),
 ) {
     val byId: Map<Long, Song> = songs.associateBy { it.id }
 
@@ -88,6 +92,7 @@ object MediaStoreRepository {
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.COMPOSER,
         )
         val songs = ArrayList<Song>()
         context.contentResolver.query(
@@ -112,6 +117,7 @@ object MediaStoreRepository {
             @Suppress("DEPRECATION")
             val iData = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
             val iName = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            val iComposer = c.getColumnIndexOrThrow(MediaStore.Audio.Media.COMPOSER)
             while (c.moveToNext()) {
                 val artist = c.getString(iArtist).cleanTag() ?: UNKNOWN_ARTIST
                 songs += Song(
@@ -129,6 +135,7 @@ object MediaStoreRepository {
                     dateAddedSec = c.getLong(iAdded),
                     path = c.getString(iData).orEmpty(),
                     displayName = c.getString(iName).orEmpty(),
+                    composer = c.getString(iComposer).cleanTag().orEmpty(),
                 )
             }
         }
@@ -181,6 +188,9 @@ object MediaStoreRepository {
         val folders = all.groupBy { it.folder }.map { (path, list) ->
             SongGroup(path, path.substringAfterLast('/').ifEmpty { internalStorage }, list.sortedWith(songOrder))
         }.sortedWith(compareBy(byName) { it.name })
-        return Library(songs, albums, artists, genres, folders)
+        val composers = all.filter { it.composer.isNotEmpty() }.groupBy { it.composer.lowercase() }.map { (key, list) ->
+            SongGroup(key, list.first().composer, list.sortedWith(songOrder))
+        }.sortedWith(compareBy(byName) { it.name })
+        return Library(songs, albums, artists, genres, folders, composers)
     }
 }

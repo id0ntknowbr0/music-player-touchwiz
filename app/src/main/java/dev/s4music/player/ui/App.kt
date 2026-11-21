@@ -53,6 +53,7 @@ sealed interface SongSource {
     data class Artist(val id: Long) : SongSource
     data class Genre(val key: String) : SongSource
     data class Folder(val key: String) : SongSource
+    data class Composer(val key: String) : SongSource
     data class UserPlaylist(val id: Long) : SongSource
     data object MostPlayed : SongSource
     data object RecentlyPlayed : SongSource
@@ -80,6 +81,7 @@ fun SongSource.resolve(
         is SongSource.Artist -> lib.artists.firstOrNull { it.id == id }?.songs.orEmpty()
         is SongSource.Genre -> lib.genres.firstOrNull { it.key == key }?.songs.orEmpty()
         is SongSource.Folder -> lib.folders.firstOrNull { it.key == key }?.songs.orEmpty()
+        is SongSource.Composer -> lib.composers.firstOrNull { it.key == key }?.songs.orEmpty()
         is SongSource.UserPlaylist -> playlists.firstOrNull { it.id == id }?.songIds?.mapNotNull { lib.byId[it] }.orEmpty()
         SongSource.MostPlayed -> stats.entries.filter { it.value.count > 0 }
             .sortedByDescending { it.value.count }.mapNotNull { lib.byId[it.key] }.take(SMART_LIMIT)
@@ -106,6 +108,7 @@ class UiActions(
     val exportPlaylist: (name: String, songs: List<Song>) -> Unit = { _, _ -> },
     val exportAllPlaylists: () -> Unit = {},
     val importPlaylists: () -> Unit = {},
+    val setAs: (Song) -> Unit = {},
 ) {
     private fun str(@StringRes id: Int) = context.getString(id)
 
@@ -124,6 +127,7 @@ class UiActions(
             toggleFavourite(song)
         },
         MenuAction(str(R.string.edit_track_info)) { editSong(song) },
+        MenuAction(str(R.string.set_as)) { setAs(song) },
         MenuAction(str(R.string.details)) { showDetails(song) },
     ) + extra + MenuAction(str(R.string.delete)) { deleteSongs(listOf(song)) }
 
@@ -160,6 +164,7 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
     var addToPlaylist by remember { mutableStateOf<List<Song>?>(null) }
     var details by remember { mutableStateOf<Song?>(null) }
     var editing by remember { mutableStateOf<Song?>(null) }
+    var setAsSong by remember { mutableStateOf<Song?>(null) }
     var dialog by remember { mutableStateOf<GlobalDialog?>(null) }
 
     // ---- System "allow modify / delete" dialogs (Android 11+ scoped storage) ----
@@ -315,6 +320,7 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
                 } else exportAll.launch(null)
             },
             importPlaylists = { importer.launch(arrayOf("*/*")) },
+            setAs = { setAsSong = it },
         )
     }
 
@@ -360,6 +366,7 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
         }
         details?.let { DetailsDialog(it) { details = null } }
         importReport?.let { ImportReportDialog(it) { importReport = null } }
+        setAsSong?.let { SetAsDialog(it) { setAsSong = null } }
         editing?.let { song ->
             val albumCount = library.albums.firstOrNull { it.id == song.albumId }?.songs?.size ?: 1
             EditTrackDialog(song, albumCount, onDismiss = { editing = null }) { edits, cover, wholeAlbum ->

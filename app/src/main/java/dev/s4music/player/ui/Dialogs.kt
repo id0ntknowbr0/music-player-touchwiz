@@ -158,7 +158,7 @@ fun SoundAliveDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun PresetChip(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+fun PresetChip(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(6.dp)
     Box(
         modifier.clip(shape)

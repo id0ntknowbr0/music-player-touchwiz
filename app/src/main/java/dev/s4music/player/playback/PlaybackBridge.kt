@@ -34,9 +34,11 @@ object PlaybackBridge {
     private val _soundAlive = MutableStateFlow(SoundAliveSettings())
     val soundAlive: StateFlow<SoundAliveSettings> = _soundAlive.asStateFlow()
     private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
 
     fun init(context: Context) {
         if (::prefs.isInitialized) return
+        appContext = context.applicationContext
         prefs = context.getSharedPreferences("sound_alive", Context.MODE_PRIVATE)
         _soundAlive.value = SoundAliveSettings.load(prefs)
     }
@@ -45,6 +47,23 @@ object PlaybackBridge {
         _soundAlive.value = settings
         settings.save(prefs)
     }
+
+    // ---- SoundAlive per output (one prefs file per output key) ----
+
+    private fun profilePrefs(outputKey: String) = appContext.getSharedPreferences(
+        "sound_alive_" + outputKey.lowercase().map { if (it.isLetterOrDigit()) it else '_' }.joinToString("").take(40) +
+            "_" + Integer.toHexString(outputKey.hashCode()),
+        Context.MODE_PRIVATE,
+    )
+
+    fun saveProfile(outputKey: String) {
+        val p = profilePrefs(outputKey)
+        _soundAlive.value.save(p)
+        p.edit().putBoolean("saved", true).apply()
+    }
+
+    fun loadProfile(outputKey: String): SoundAliveSettings? =
+        profilePrefs(outputKey).takeIf { it.getBoolean("saved", false) }?.let { SoundAliveSettings.load(it) }
 }
 
 private const val URI_PREFIX = "uri:"

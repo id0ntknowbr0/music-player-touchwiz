@@ -87,6 +87,9 @@ dependencies {
     // Reading/writing audio tags (track info editing, embedded lyrics)
     implementation("net.jthink:jaudiotagger:3.0.1")
 
+    // Background analysis for Music Square (survives the app closing; waits while the battery is low)
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
     // Off-device screenshot tests (renders screens to PNG on the PC)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")

@@ -57,6 +57,8 @@ fun LibraryTabId.labelRes(): Int = when (this) {
     LibraryTabId.ARTISTS -> R.string.tab_artists
     LibraryTabId.GENRES -> R.string.tab_genres
     LibraryTabId.FOLDERS -> R.string.tab_folders
+    LibraryTabId.COMPOSERS -> R.string.tab_composers
+    LibraryTabId.MUSIC_SQUARE -> R.string.tab_music_square
 }
 
 @StringRes
@@ -112,6 +114,16 @@ fun SettingsScreen(libraryVm: LibraryViewModel, onBack: () -> Unit) {
                 stringResource(R.string.settings_skip_silence_summary),
                 checked = s.skipSilence,
             ) { AppSettings.update { it.copy(skipSilence = !it.skipSilence) } }
+            SettingsRow(
+                stringResource(R.string.settings_auto_resume),
+                stringResource(R.string.settings_auto_resume_summary),
+                checked = s.autoResume,
+            ) { AppSettings.update { it.copy(autoResume = !it.autoResume) } }
+            SettingsRow(
+                stringResource(R.string.settings_sound_per_output),
+                stringResource(R.string.settings_sound_per_output_summary),
+                checked = s.soundPerOutput,
+            ) { AppSettings.update { it.copy(soundPerOutput = !it.soundPerOutput) } }
 
             SettingsSection(R.string.settings_section_lyrics)
             SettingsRow(

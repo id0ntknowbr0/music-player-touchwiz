@@ -37,6 +37,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.BluetoothAudio
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -86,6 +90,8 @@ import androidx.media3.common.Player
 import dev.s4music.player.R
 import dev.s4music.player.data.Favourites
 import dev.s4music.player.data.Library
+import dev.s4music.player.playback.OutputKind
+import dev.s4music.player.playback.OutputRoutes
 import dev.s4music.player.playback.PlaybackBridge
 import dev.s4music.player.ui.theme.S4Colors
 import kotlinx.coroutines.delay
@@ -157,6 +163,8 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
             Text(if (ps.queue.isEmpty()) "" else stringResource(R.string.queue_position, ps.index + 1, ps.queue.size),
                 color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Row(Modifier.align(Alignment.CenterStart).padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutputButton()
+                Spacer(Modifier.width(8.dp))
                 if (sleepAt != null || sleepAfterCurrent) {
                     Icon(Icons.Default.Bedtime, stringResource(R.string.music_auto_off_on), tint = TimeBlue,
                         modifier = Modifier.size(18.dp).clickable { ui.showDialog(GlobalDialog.SleepTimer) })
@@ -184,6 +192,7 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
                         MenuAction(stringResource(R.string.lyrics)) { panel = Panel.Lyrics },
                         MenuAction(stringResource(R.string.add_to_playlist)) { ui.addToPlaylist(listOf(s)) },
                         MenuAction(stringResource(R.string.edit_track_info)) { ui.editSong(s) },
+                        MenuAction(stringResource(R.string.set_as)) { ui.setAs(s) },
                         MenuAction(stringResource(R.string.go_to_album)) {
                             ui.closePlayer(); ui.navigate(Screen.Songs(s.album, SongSource.Album(s.albumId)))
                         },
@@ -208,7 +217,14 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             when (panel) {
                 Panel.Queue -> QueueList(ps)
-                Panel.Lyrics -> LyricsPanel(song, ps.positionMs, onClose = { panel = Panel.Art })
+                // Lyrics over the album art, as on the S4: the art stays visible behind a dark veil.
+                Panel.Lyrics -> Box(Modifier.fillMaxSize()) {
+                    AlbumArt(
+                        song?.albumId, Modifier.fillMaxSize(), sizePx = 1024, shape = RoundedCornerShape(0.dp),
+                        fallbackData = ps.artworkData, placeholder = R.drawable.tw_default_art_large, songId = song?.id,
+                    )
+                    LyricsPanel(song, ps.positionMs, onClose = { panel = Panel.Art }, background = Color(0xC0000000))
+                }
                 Panel.Art -> AlbumArt(
                     song?.albumId,
                     Modifier.padding(horizontal = 40.dp, vertical = 6.dp).widthIn(max = 440.dp).fillMaxWidth()
@@ -291,6 +307,31 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
 }
 
 private enum class Panel { Art, Lyrics, Queue }
+
+/** Shows where music is playing; tap to open Android's output switcher (Bluetooth, wired, Cast). */
+@Composable
+private fun OutputButton() {
+    val context = LocalContext.current
+    val route by OutputRoutes.current.collectAsState()
+    val (icon, label) = when (route.kind) {
+        OutputKind.SPEAKER -> Icons.Default.PhoneAndroid to stringResource(R.string.output_speaker)
+        OutputKind.WIRED -> Icons.Default.Headphones to stringResource(R.string.output_wired)
+        OutputKind.BLUETOOTH -> Icons.Default.BluetoothAudio to (route.name ?: stringResource(R.string.output_bluetooth))
+        OutputKind.USB -> Icons.Default.Usb to (route.name ?: stringResource(R.string.output_usb))
+    }
+    Row(
+        Modifier.clickable { OutputRoutes.openSystemOutputSwitcher(context) }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, stringResource(R.string.output_choose, label), tint = if (route.kind == OutputKind.SPEAKER)
+            Color(0xFFD0D0D0) else TimeBlue, modifier = Modifier.size(18.dp))
+        if (route.kind == OutputKind.BLUETOOTH || route.kind == OutputKind.USB) {
+            Spacer(Modifier.width(4.dp))
+            Text(label, color = TimeBlue, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 96.dp))
+        }
+    }
+}
 
 @Composable
 private fun PlayerMenu(ps: PlayerUiState, actions: List<MenuAction>) {

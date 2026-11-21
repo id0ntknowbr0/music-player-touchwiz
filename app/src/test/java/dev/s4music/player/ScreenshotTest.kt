@@ -121,6 +121,29 @@ class ScreenshotTest {
     }
 
     @Test
+    fun musicSquare() {
+        org.robolectric.Shadows.shadowOf(app).declareComponentUnbindable(
+            android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
+        val ui = UiActions(app, PlayerViewModel(app))
+        // Robolectric doesn't run App Startup, which normally initialises WorkManager.
+        androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder().build())
+        val genres = listOf("Metal", "Rock", "Pop", "Dance", "Ambient", "Jazz", "Blues", "Classical", "Reggae", "Pop",
+            "Pop", "Rock", "Hip Hop", "Folk", "Disco", "House", "Soul", "Country", "Pop", "Dance")
+        val songs = genres.mapIndexed { i, g ->
+            dev.s4music.player.data.Song(i + 1L, "Song ${i + 1}", "Artist", 1, "Album", 1, g, 2013, 1, 200_000,
+                "Music", 0, "/sdcard/Music/$i.mp3", "$i.mp3")
+        }
+        val lib = dev.s4music.player.data.MediaStoreRepository.build(songs, dev.s4music.player.data.SongSort.TITLE)
+        captureRoboImage("build/screens/music_square.png") {
+            S4Theme {
+                CompositionLocalProvider(LocalUi provides ui) {
+                    dev.s4music.player.ui.MusicSquareTab(lib, null) {}
+                }
+            }
+        }
+    }
+
+    @Test
     fun settings() {
         val vm = dev.s4music.player.ui.LibraryViewModel(app)
         captureRoboImage("build/screens/settings.png") {

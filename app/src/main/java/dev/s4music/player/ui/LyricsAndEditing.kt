@@ -73,7 +73,7 @@ private sealed interface LyricsState {
 
 /** Lyrics view shown over the album art. Tap empty space to go back to the art. */
 @Composable
-fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
+fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit, background: Color = LyricBg) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var version by remember { mutableIntStateOf(0) }
@@ -115,7 +115,7 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
     }
 
     Column(
-        Modifier.fillMaxSize().background(LyricBg)
+        Modifier.fillMaxSize().background(background)
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose)
     ) {
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -160,7 +160,7 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
         }
 
         // Actions
-        Row(Modifier.fillMaxWidth().background(Color(0xFF26292C)).padding(horizontal = 4.dp),
+        Row(Modifier.fillMaxWidth().background(Color(0xCC26292C)).padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { importer.launch(arrayOf("*/*")) }, enabled = song != null) {
                 Text(stringResource(R.string.lyrics_import), color = S4Colors.Accent)
