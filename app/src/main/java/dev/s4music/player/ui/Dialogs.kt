@@ -38,9 +38,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.s4music.player.R
 import dev.s4music.player.data.Playlist
 import dev.s4music.player.data.PlaylistStore
 import dev.s4music.player.data.Song
@@ -65,14 +68,14 @@ fun SoundAliveDialog(onDismiss: () -> Unit) {
     val s by PlaybackBridge.soundAlive.collectAsState()
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-        title = { Text("SoundAlive") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } },
+        title = { Text(stringResource(R.string.soundalive)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 SoundPreset.entries.chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         row.forEach { p ->
-                            PresetChip(p.label, s.preset == p, Modifier.weight(1f)) {
+                            PresetChip(stringResource(p.label), s.preset == p, Modifier.weight(1f)) {
                                 PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(preset = p))
                             }
                         }
@@ -87,23 +90,25 @@ fun SoundAliveDialog(onDismiss: () -> Unit) {
                             label = if (hz >= 1000) "${hz / 1000f}k".replace(".0k", "k") else "$hz",
                             value = s.customGains[i],
                             range = -10f..10f,
-                            valueText = "%+d dB".format(s.customGains[i].roundToInt()),
+                            valueText = stringResource(R.string.eq_db_value, s.customGains[i].roundToInt()),
                         ) { v ->
                             val cur = PlaybackBridge.soundAlive.value
                             PlaybackBridge.setSoundAlive(cur.copy(
                                 customGains = cur.customGains.toMutableList().also { it[i] = v.roundToInt().toFloat() }))
                         }
                     }
-                    LabeledSlider("Bass", s.customBass.toFloat(), 0f..1000f, "${s.customBass / 10}%") { v ->
+                    LabeledSlider(stringResource(R.string.eq_bass), s.customBass.toFloat(), 0f..1000f,
+                        stringResource(R.string.percent_value, s.customBass / 10)) { v ->
                         PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(customBass = v.toInt()))
                     }
-                    LabeledSlider("3D", s.customVirtualizer.toFloat(), 0f..1000f, "${s.customVirtualizer / 10}%") { v ->
+                    LabeledSlider(stringResource(R.string.eq_3d), s.customVirtualizer.toFloat(), 0f..1000f,
+                        stringResource(R.string.percent_value, s.customVirtualizer / 10)) { v ->
                         PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(customVirtualizer = v.toInt()))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Effects use Android's built-in audio effects, so results vary between devices and outputs.",
+                    stringResource(R.string.soundalive_note),
                     color = S4Colors.Text2, fontSize = 12.sp,
                 )
             }
@@ -149,10 +154,10 @@ fun PlaySpeedDialog(current: Float, onSet: (Float) -> Unit, onDismiss: () -> Uni
     var speed by remember { mutableFloatStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Play speed") },
+        title = { Text(stringResource(R.string.play_speed)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("%.1fx".format(speed), color = S4Colors.AccentBright, fontSize = 28.sp)
+                Text(stringResource(R.string.speed_value, speed), color = S4Colors.AccentBright, fontSize = 28.sp)
                 Slider(
                     value = speed,
                     onValueChange = { speed = (it * 10).roundToInt() / 10f; onSet(speed) },
@@ -161,14 +166,14 @@ fun PlaySpeedDialog(current: Float, onSet: (Float) -> Unit, onDismiss: () -> Uni
                     colors = sliderColors,
                 )
                 Row(Modifier.fillMaxWidth()) {
-                    Text("0.5x", color = S4Colors.Text2, fontSize = 12.sp)
+                    Text(stringResource(R.string.speed_value, 0.5f), color = S4Colors.Text2, fontSize = 12.sp)
                     Spacer(Modifier.weight(1f))
-                    Text("2.0x", color = S4Colors.Text2, fontSize = 12.sp)
+                    Text(stringResource(R.string.speed_value, 2.0f), color = S4Colors.Text2, fontSize = 12.sp)
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-        dismissButton = { TextButton(onClick = { speed = 1f; onSet(1f) }) { Text("Reset") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } },
+        dismissButton = { TextButton(onClick = { speed = 1f; onSet(1f) }) { Text(stringResource(R.string.reset)) } },
     )
 }
 
@@ -178,17 +183,17 @@ fun PlaySpeedDialog(current: Float, onSet: (Float) -> Unit, onDismiss: () -> Uni
 fun SleepTimerDialog(onSet: (Int?) -> Unit, onDismiss: () -> Unit) {
     val remaining = rememberSleepRemaining()
     val options = listOf(
-        null to "Off", 15 to "After 15 mins", 30 to "After 30 mins",
-        60 to "After 1 hr", 90 to "After 1 hr 30 mins", 120 to "After 2 hrs",
+        null to R.string.sleep_off, 15 to R.string.sleep_15, 30 to R.string.sleep_30,
+        60 to R.string.sleep_60, 90 to R.string.sleep_90, 120 to R.string.sleep_120,
     )
     var custom by remember { mutableFloatStateOf(45f) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Music auto off") },
+        title = { Text(stringResource(R.string.music_auto_off)) },
         text = {
             Column {
                 if (remaining != null) {
-                    Text("Music will stop in ${formatTime(remaining)}", color = S4Colors.AccentBright, fontSize = 14.sp)
+                    Text(stringResource(R.string.sleep_remaining, formatTime(remaining)), color = S4Colors.AccentBright, fontSize = 14.sp)
                     Spacer(Modifier.height(8.dp))
                 }
                 options.forEach { (minutes, label) ->
@@ -201,16 +206,18 @@ fun SleepTimerDialog(onSet: (Int?) -> Unit, onDismiss: () -> Unit) {
                             onClick = { onSet(minutes); onDismiss() },
                             colors = RadioButtonDefaults.colors(selectedColor = S4Colors.Accent),
                         )
-                        Text(label, color = S4Colors.Text1)
+                        Text(stringResource(label), color = S4Colors.Text1)
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp), color = S4Colors.Divider)
-                Text("Custom: ${custom.roundToInt()} mins", color = S4Colors.Text1, fontSize = 14.sp)
+                Text(pluralStringResource(R.plurals.sleep_custom, custom.roundToInt(), custom.roundToInt()), color = S4Colors.Text1, fontSize = 14.sp)
                 Slider(custom, { custom = it }, valueRange = 1f..240f, colors = sliderColors)
             }
         },
-        confirmButton = { TextButton(onClick = { onSet(custom.roundToInt()); onDismiss() }) { Text("Set custom") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = {
+            TextButton(onClick = { onSet(custom.roundToInt()); onDismiss() }) { Text(stringResource(R.string.sleep_set_custom)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -220,17 +227,18 @@ fun SleepTimerDialog(onSet: (Int?) -> Unit, onDismiss: () -> Unit) {
 fun AddToPlaylistDialog(playlists: List<Playlist>, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
     var creating by remember { mutableStateOf(false) }
     if (creating) {
-        TextInputDialog("Create playlist", "My playlist", "Create",
+        TextInputDialog(stringResource(R.string.create_playlist), stringResource(R.string.default_playlist_name),
+            stringResource(R.string.create),
             onConfirm = { onPick(PlaylistStore.create(it).id) }, onDismiss = onDismiss)
         return
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add to playlist") },
+        title = { Text(stringResource(R.string.add_to_playlist)) },
         text = {
             LazyColumn(Modifier.heightIn(max = 360.dp)) {
                 item {
-                    Text("+  Create playlist", color = S4Colors.Accent, fontSize = 16.sp,
+                    Text(stringResource(R.string.create_playlist_row), color = S4Colors.Accent, fontSize = 16.sp,
                         modifier = Modifier.fillMaxWidth().clickable { creating = true }.padding(vertical = 12.dp))
                 }
                 items(playlists, key = { it.id }) { p ->
@@ -240,7 +248,7 @@ fun AddToPlaylistDialog(playlists: List<Playlist>, onDismiss: () -> Unit, onPick
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -260,7 +268,7 @@ fun TextInputDialog(
         confirmButton = {
             TextButton(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -271,7 +279,7 @@ fun ConfirmDialog(title: String, message: String, confirmLabel: String, onConfir
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -280,26 +288,26 @@ fun ConfirmDialog(title: String, message: String, confirmLabel: String, onConfir
 @Composable
 fun DetailsDialog(song: Song, onDismiss: () -> Unit) {
     val rows = listOf(
-        "Title" to song.title,
-        "Artist" to song.artist,
-        "Album" to song.album,
-        "Genre" to song.genre,
-        "Year" to (song.year.takeIf { it > 0 }?.toString() ?: "-"),
-        "Track" to (song.track.takeIf { it > 0 }?.let { (it % 1000).toString() } ?: "-"),
-        "Length" to formatTime(song.durationMs),
-        "Location" to song.folder.ifEmpty { "/" },
+        R.string.label_title to song.title,
+        R.string.label_artist to song.artist,
+        R.string.label_album to song.album,
+        R.string.label_genre to song.genre,
+        R.string.label_year to (song.year.takeIf { it > 0 }?.toString() ?: "-"),
+        R.string.label_track to (song.track.takeIf { it > 0 }?.let { (it % 1000).toString() } ?: "-"),
+        R.string.label_length to formatTime(song.durationMs),
+        R.string.label_location to song.folder.ifEmpty { "/" },
     )
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Details") },
+        title = { Text(stringResource(R.string.details)) },
         text = {
             Column {
                 rows.forEach { (k, v) ->
-                    Text(k, color = S4Colors.Text2, fontSize = 12.sp)
+                    Text(stringResource(k), color = S4Colors.Text2, fontSize = 12.sp)
                     Text(v, color = S4Colors.Text1, fontSize = 15.sp, modifier = Modifier.padding(bottom = 8.dp))
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
     )
 }

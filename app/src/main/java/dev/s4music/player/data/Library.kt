@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import dev.s4music.player.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -49,14 +50,29 @@ data class Library(
 }
 
 object MediaStoreRepository {
-    const val UNKNOWN_ARTIST = "Unknown artist"
-    const val UNKNOWN_ALBUM = "Unknown album"
-    const val UNKNOWN_GENRE = "Unknown genre"
+    // Labels for missing tags, set from string resources by [initLabels] so they can be translated.
+    var UNKNOWN_ARTIST = "Unknown artist"; private set
+    var UNKNOWN_ALBUM = "Unknown album"; private set
+    var UNKNOWN_GENRE = "Unknown genre"; private set
+    private var unknownTitle = "Unknown"
+    private var internalStorage = "Internal storage"
+
+    fun initLabels(context: Context) {
+        UNKNOWN_ARTIST = context.getString(R.string.unknown_artist)
+        UNKNOWN_ALBUM = context.getString(R.string.unknown_album)
+        UNKNOWN_GENRE = context.getString(R.string.unknown_genre)
+        unknownTitle = context.getString(R.string.unknown_title)
+        internalStorage = context.getString(R.string.internal_storage)
+    }
 
     private val byName = Comparator<String> { a, b -> a.compareTo(b, ignoreCase = true) }
     private val trackOrder = compareBy<Song>({ it.track }, { it.title.lowercase() })
 
-    suspend fun load(context: Context): Library = withContext(Dispatchers.IO) {
+    /** The whole library, unfiltered (used to restore the saved queue). */
+    suspend fun load(context: Context): Library = build(loadSongs(context), SongSort.TITLE)
+
+    /** Every music file MediaStore knows about, before the user's library filters. */
+    suspend fun loadSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
@@ -100,7 +116,7 @@ object MediaStoreRepository {
                 val artist = c.getString(iArtist).cleanTag() ?: UNKNOWN_ARTIST
                 songs += Song(
                     id = c.getLong(iId),
-                    title = c.getString(iTitle).cleanTag() ?: "Unknown",
+                    title = c.getString(iTitle).cleanTag() ?: unknownTitle,
                     artist = artist,
                     artistId = c.getLong(iArtistId),
                     album = c.getString(iAlbum).cleanTag() ?: UNKNOWN_ALBUM,
@@ -116,14 +132,31 @@ object MediaStoreRepository {
                 )
             }
         }
-        build(songs)
+        songs
+    }
+
+    /** Applies the "Ignore short tracks" and scan-folder settings. */
+    fun filter(songs: List<Song>, settings: Settings): List<Song> {
+        val minMs = settings.minDurationSec * 1000L
+        return songs.filter { s ->
+            // Duration 0 means MediaStore doesn't know it yet; keep those rather than hide real music.
+            (minMs == 0L || s.durationMs <= 0 || s.durationMs >= minMs) && !settings.isExcluded(s.folder)
+        }
+    }
+
+    fun songComparator(sort: SongSort): Comparator<Song> = when (sort) {
+        SongSort.TITLE -> compareBy(byName) { it.title }
+        SongSort.ARTIST -> compareBy<Song, String>(byName) { it.artist }.thenBy(byName) { it.title }
+        SongSort.ALBUM -> compareBy<Song, String>(byName) { it.album }.then(trackOrder)
+        SongSort.DATE_ADDED -> compareByDescending<Song> { it.dateAddedSec }.thenBy(byName) { it.title }
     }
 
     private fun String?.cleanTag(): String? =
         this?.trim()?.takeUnless { it.isEmpty() || it == "<unknown>" }
 
-    private fun build(all: List<Song>): Library {
-        val songs = all.sortedWith(compareBy(byName) { it.title })
+    fun build(all: List<Song>, sort: SongSort): Library {
+        val songOrder = songComparator(sort)
+        val songs = all.sortedWith(songOrder)
         val albums = all.groupBy { it.albumId }.map { (id, list) ->
             val sorted = list.sortedWith(trackOrder)
             Album(
@@ -143,11 +176,10 @@ object MediaStoreRepository {
             )
         }.sortedWith(compareBy(byName) { it.name })
         val genres = all.groupBy { it.genre }.map { (g, list) ->
-            SongGroup(g, g, list.sortedWith(compareBy(byName) { it.title }))
+            SongGroup(g, g, list.sortedWith(songOrder))
         }.sortedWith(compareBy(byName) { it.name })
         val folders = all.groupBy { it.folder }.map { (path, list) ->
-            SongGroup(path, path.substringAfterLast('/').ifEmpty { "Internal storage" },
-                list.sortedWith(compareBy(byName) { it.title }))
+            SongGroup(path, path.substringAfterLast('/').ifEmpty { internalStorage }, list.sortedWith(songOrder))
         }.sortedWith(compareBy(byName) { it.name })
         return Library(songs, albums, artists, genres, folders)
     }

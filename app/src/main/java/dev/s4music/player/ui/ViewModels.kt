@@ -14,6 +14,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import dev.s4music.player.data.AppSettings
 import dev.s4music.player.data.Library
 import dev.s4music.player.data.MediaStoreRepository
 import dev.s4music.player.data.Song
@@ -21,7 +22,15 @@ import dev.s4music.player.playback.PlaybackBridge
 import dev.s4music.player.playback.PlaybackService
 import dev.s4music.player.playback.externalMediaItem
 import dev.s4music.player.playback.toMediaItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,15 +40,35 @@ import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/** A folder that contains music, before the user's exclusions. */
+data class FolderInfo(val path: String, val songCount: Int)
+
 class LibraryViewModel(app: Application) : AndroidViewModel(app) {
-    private val _library = MutableStateFlow(Library.EMPTY)
-    val library: StateFlow<Library> = _library.asStateFlow()
+    /** Everything MediaStore returned; null until the first scan finishes. */
+    private val raw = MutableStateFlow<List<Song>?>(null)
+    val rawSongs: List<Song> get() = raw.value.orEmpty()
+
     private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    /** The library as shown: short tracks and excluded folders removed, songs in the chosen order. */
+    val library: StateFlow<Library> = combine(
+        raw.filterNotNull(),
+        AppSettings.settings.map { Triple(it.minDurationSec, it.excludedFolders, it.songSort) }.distinctUntilChanged(),
+    ) { songs, _ ->
+        val s = AppSettings.current
+        MediaStoreRepository.build(MediaStoreRepository.filter(songs, s), s.songSort)
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, Library.EMPTY)
+
+    val allFolders: StateFlow<List<FolderInfo>> = raw.filterNotNull().map { songs ->
+        songs.groupingBy { it.folder }.eachCount().map { (path, n) -> FolderInfo(path, n) }
+            .sortedBy { it.path.lowercase() }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var started = false
     private var reloadJob: Job? = null
 
+    // New, changed or deleted audio files show up without a manual rescan.
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) = reload(debounceMs = 1500)
     }
@@ -57,8 +86,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
             delay(debounceMs)
-            _library.value = runCatching { MediaStoreRepository.load(getApplication()) }
-                .getOrDefault(Library.EMPTY)
+            raw.value = runCatching { MediaStoreRepository.loadSongs(getApplication()) }.getOrDefault(emptyList())
             _loading.value = false
         }
     }

@@ -7,6 +7,8 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
 import android.util.Log
+import androidx.annotation.StringRes
+import dev.s4music.player.R
 import kotlin.math.ln
 
 /** The S4's 7-band user EQ frequencies. Mapped onto whatever bands the device equaliser has. */
@@ -16,25 +18,25 @@ private fun g(vararg v: Int) = FloatArray(v.size) { v[it].toFloat() }
 
 /** SoundAlive presets from the S4 music player, re-tuned by ear for Android's audio effects. */
 enum class SoundPreset(
-    val label: String,
+    @StringRes val label: Int,
     val gainsDb: FloatArray,
     val bassBoost: Int = 0,      // 0..1000
     val virtualizer: Int = 0,    // 0..1000
 ) {
-    NORMAL("Normal", g(0, 0, 0, 0, 0, 0, 0)),
-    POP("Pop", g(-1, 1, 3, 4, 3, 1, -1)),
-    ROCK("Rock", g(5, 3, -1, -2, 1, 3, 5)),
-    DANCE("Dance", g(6, 4, 1, 0, 1, 3, 4), bassBoost = 300),
-    JAZZ("Jazz", g(3, 2, 1, 2, -1, 1, 3)),
-    CLASSIC("Classic", g(4, 3, 2, 0, 0, 2, 3)),
-    VOCAL("Vocal", g(-2, -1, 2, 4, 4, 2, 0)),
-    BASS_BOOST("Bass boost", g(4, 2, 0, 0, 0, 0, 0), bassBoost = 800),
-    TREBLE_BOOST("Treble boost", g(0, 0, 0, 0, 2, 5, 7)),
-    VIRTUAL_71("Virtual 7.1 ch", g(1, 0, 0, 0, 0, 1, 2), virtualizer = 1000),
-    CONCERT_HALL("Concert hall", g(2, 1, 0, 1, 2, 2, 1), virtualizer = 700),
-    CAFE("Cafe", g(-1, 0, 2, 2, 1, 0, -2), virtualizer = 300),
-    TUBE_AMP("Tube amp", g(3, 2, 1, 0, -1, -2, -3), bassBoost = 200),
-    CUSTOM("User EQ", g(0, 0, 0, 0, 0, 0, 0)),
+    NORMAL(R.string.preset_normal, g(0, 0, 0, 0, 0, 0, 0)),
+    POP(R.string.preset_pop, g(-1, 1, 3, 4, 3, 1, -1)),
+    ROCK(R.string.preset_rock, g(5, 3, -1, -2, 1, 3, 5)),
+    DANCE(R.string.preset_dance, g(6, 4, 1, 0, 1, 3, 4), bassBoost = 300),
+    JAZZ(R.string.preset_jazz, g(3, 2, 1, 2, -1, 1, 3)),
+    CLASSIC(R.string.preset_classic, g(4, 3, 2, 0, 0, 2, 3)),
+    VOCAL(R.string.preset_vocal, g(-2, -1, 2, 4, 4, 2, 0)),
+    BASS_BOOST(R.string.preset_bass_boost, g(4, 2, 0, 0, 0, 0, 0), bassBoost = 800),
+    TREBLE_BOOST(R.string.preset_treble_boost, g(0, 0, 0, 0, 2, 5, 7)),
+    VIRTUAL_71(R.string.preset_virtual_71, g(1, 0, 0, 0, 0, 1, 2), virtualizer = 1000),
+    CONCERT_HALL(R.string.preset_concert_hall, g(2, 1, 0, 1, 2, 2, 1), virtualizer = 700),
+    CAFE(R.string.preset_cafe, g(-1, 0, 2, 2, 1, 0, -2), virtualizer = 300),
+    TUBE_AMP(R.string.preset_tube_amp, g(3, 2, 1, 0, -1, -2, -3), bassBoost = 200),
+    CUSTOM(R.string.preset_user_eq, g(0, 0, 0, 0, 0, 0, 0)),
 }
 
 data class SoundAliveSettings(

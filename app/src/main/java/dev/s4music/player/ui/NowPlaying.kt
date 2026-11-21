@@ -38,6 +38,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -74,6 +76,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -81,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
 import dev.s4music.player.R
+import dev.s4music.player.data.Favourites
 import dev.s4music.player.data.Library
 import dev.s4music.player.playback.PlaybackBridge
 import dev.s4music.player.ui.theme.S4Colors
@@ -102,6 +106,7 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
     var panel by rememberSaveable { mutableStateOf(Panel.Art) }
     val ab by PlaybackBridge.abRepeat.collectAsState()
     val sleepAt by PlaybackBridge.sleepAtElapsed.collectAsState()
+    val favourites by Favourites.ids.collectAsState()
 
     Column(
         Modifier
@@ -115,18 +120,19 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
             Image(painterResource(R.drawable.tw_top_bg), null, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds)
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(139f).fillMaxHeight().clickable(onClick = onClose), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.KeyboardArrowDown, "Close player", tint = Color(0xFFE6E6E6), modifier = Modifier.size(34.dp))
+                    Icon(Icons.Default.KeyboardArrowDown, stringResource(R.string.close_player), tint = Color(0xFFE6E6E6), modifier = Modifier.size(34.dp))
                 }
                 Column(Modifier.weight(440f).padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(ps.artist.ifEmpty { "<Unknown>" }, color = HeaderGray, fontSize = 13.sp, maxLines = 1,
+                    val unknown = stringResource(R.string.unknown_tag)
+                    Text(ps.artist.ifEmpty { unknown }, color = HeaderGray, fontSize = 13.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis)
-                    Text(ps.title.ifEmpty { "<Unknown>" }, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold,
+                    Text(ps.title.ifEmpty { unknown }, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, modifier = Modifier.basicMarquee())
-                    Text(ps.album.ifEmpty { "<Unknown>" }, color = HeaderGray, fontSize = 13.sp, maxLines = 1,
+                    Text(ps.album.ifEmpty { unknown }, color = HeaderGray, fontSize = 13.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis)
                 }
                 Box(Modifier.weight(141f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                    TwButton(R.drawable.tw_volume, R.drawable.tw_volume_press, "Volume", Modifier.size(58.dp)) {
+                    TwButton(R.drawable.tw_volume, R.drawable.tw_volume_press, stringResource(R.string.volume), Modifier.size(58.dp)) {
                         audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
                     }
                 }
@@ -147,36 +153,51 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
                     )
                 }
             }
-            Text(if (ps.queue.isEmpty()) "" else "${ps.index + 1}/${ps.queue.size}",
+            Text(if (ps.queue.isEmpty()) "" else stringResource(R.string.queue_position, ps.index + 1, ps.queue.size),
                 color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Row(Modifier.align(Alignment.CenterStart).padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (sleepAt != null) {
-                    Icon(Icons.Default.Bedtime, "Music auto off on", tint = TimeBlue,
+                    Icon(Icons.Default.Bedtime, stringResource(R.string.music_auto_off_on), tint = TimeBlue,
                         modifier = Modifier.size(18.dp).clickable { ui.showDialog(GlobalDialog.SleepTimer) })
                     Spacer(Modifier.width(8.dp))
                 }
                 if (ps.speed != 1f) {
-                    Text("%.1fx".format(ps.speed), color = TimeBlue, fontSize = 13.sp,
+                    Text(stringResource(R.string.speed_value, ps.speed), color = TimeBlue, fontSize = 13.sp,
                         modifier = Modifier.clickable { ui.showDialog(GlobalDialog.PlaySpeed) })
                 }
             }
-            Box(Modifier.align(Alignment.CenterEnd)) {
+            Row(Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically) {
+                if (song != null) {
+                    val isFavourite = song.id in favourites
+                    IconButton(onClick = { ui.toggleFavourite(song) }) {
+                        Icon(
+                            if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            stringResource(if (isFavourite) R.string.remove_from_favourites else R.string.add_to_favourites),
+                            tint = if (isFavourite) TimeBlue else Color(0xFFD0D0D0),
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
                 PlayerMenu(ps, song?.let { s ->
                     listOf(
-                        MenuAction("Lyrics") { panel = Panel.Lyrics },
-                        MenuAction("Add to playlist") { ui.addToPlaylist(listOf(s)) },
-                        MenuAction("Edit track info") { ui.editSong(s) },
-                        MenuAction("Go to album") { ui.closePlayer(); ui.navigate(Screen.Songs(s.album, SongSource.Album(s.albumId))) },
-                        MenuAction("Go to artist") { ui.closePlayer(); ui.navigate(Screen.Songs(s.artist, SongSource.Artist(s.artistId))) },
+                        MenuAction(stringResource(R.string.lyrics)) { panel = Panel.Lyrics },
+                        MenuAction(stringResource(R.string.add_to_playlist)) { ui.addToPlaylist(listOf(s)) },
+                        MenuAction(stringResource(R.string.edit_track_info)) { ui.editSong(s) },
+                        MenuAction(stringResource(R.string.go_to_album)) {
+                            ui.closePlayer(); ui.navigate(Screen.Songs(s.album, SongSource.Album(s.albumId)))
+                        },
+                        MenuAction(stringResource(R.string.go_to_artist)) {
+                            ui.closePlayer(); ui.navigate(Screen.Songs(s.artist, SongSource.Artist(s.artistId)))
+                        },
                     )
                 }.orEmpty() + listOf(
-                    MenuAction("SoundAlive") { ui.showDialog(GlobalDialog.SoundAlive) },
-                    MenuAction("Play speed") { ui.showDialog(GlobalDialog.PlaySpeed) },
-                    MenuAction("Music auto off") { ui.showDialog(GlobalDialog.SleepTimer) },
+                    MenuAction(stringResource(R.string.soundalive)) { ui.showDialog(GlobalDialog.SoundAlive) },
+                    MenuAction(stringResource(R.string.play_speed)) { ui.showDialog(GlobalDialog.PlaySpeed) },
+                    MenuAction(stringResource(R.string.music_auto_off)) { ui.showDialog(GlobalDialog.SleepTimer) },
                 ) + song?.let { s ->
                     listOf(
-                        MenuAction("Details") { ui.showDetails(s) },
-                        MenuAction("Delete") { ui.deleteSongs(listOf(s)) },
+                        MenuAction(stringResource(R.string.details)) { ui.showDetails(s) },
+                        MenuAction(stringResource(R.string.delete)) { ui.deleteSongs(listOf(s)) },
                     )
                 }.orEmpty())
             }
@@ -205,15 +226,15 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
         Row(Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TwButton(if (ps.shuffle) R.drawable.tw_shuffle_on else R.drawable.tw_shuffle_off, null,
-                    if (ps.shuffle) "Shuffle on" else "Shuffle off", Modifier.size(56.dp), onClick = vm::toggleShuffle)
+                    stringResource(if (ps.shuffle) R.string.shuffle_on else R.string.shuffle_off), Modifier.size(56.dp), onClick = vm::toggleShuffle)
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 val (res, desc) = when (ps.repeatMode) {
-                    Player.REPEAT_MODE_ALL -> R.drawable.tw_repeat_all to "Repeat all"
-                    Player.REPEAT_MODE_ONE -> R.drawable.tw_repeat_one to "Repeat 1"
-                    else -> R.drawable.tw_repeat_off to "Repeat off"
+                    Player.REPEAT_MODE_ALL -> R.drawable.tw_repeat_all to R.string.repeat_all
+                    Player.REPEAT_MODE_ONE -> R.drawable.tw_repeat_one to R.string.repeat_one
+                    else -> R.drawable.tw_repeat_off to R.string.repeat_off
                 }
-                TwButton(res, null, desc, Modifier.size(56.dp), onClick = vm::cycleRepeat)
+                TwButton(res, null, stringResource(desc), Modifier.size(56.dp), onClick = vm::cycleRepeat)
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 val res = when {
@@ -221,7 +242,7 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
                     ab?.b == null -> R.drawable.tw_ab_a
                     else -> R.drawable.tw_ab_on
                 }
-                TwButton(res, null, "A-B repeat", Modifier.width(62.dp).height(48.dp), onClick = vm::abRepeatClick)
+                TwButton(res, null, stringResource(R.string.ab_repeat), Modifier.width(62.dp).height(48.dp), onClick = vm::abRepeatClick)
             }
         }
 
@@ -233,25 +254,25 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
             Image(painterResource(R.drawable.tw_control_bg), null, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds)
             Row(Modifier.fillMaxSize().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(0.8f), contentAlignment = Alignment.Center) {
-                    TwButton(R.drawable.tw_soundalive, R.drawable.tw_soundalive_press, "SoundAlive", Modifier.size(52.dp)) {
+                    TwButton(R.drawable.tw_soundalive, R.drawable.tw_soundalive_press, stringResource(R.string.soundalive), Modifier.size(52.dp)) {
                         ui.showDialog(GlobalDialog.SoundAlive)
                     }
                 }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    HoldButton(R.drawable.tw_prev, R.drawable.tw_prev_press, "Previous", 70.dp,
+                    HoldButton(R.drawable.tw_prev, R.drawable.tw_prev_press, stringResource(R.string.previous), 70.dp,
                         onTap = vm::previous, onHold = { vm.seekBy(-3000) })
                 }
                 Box(Modifier.weight(1.3f), contentAlignment = Alignment.Center) {
                     TwButton(
                         if (ps.isPlaying) R.drawable.tw_pause else R.drawable.tw_play,
                         if (ps.isPlaying) R.drawable.tw_pause_press else R.drawable.tw_play_press,
-                        if (ps.isPlaying) "Pause" else "Play",
+                        stringResource(if (ps.isPlaying) R.string.pause else R.string.play),
                         Modifier.width(98.dp).height(87.dp),
                         onClick = vm::togglePlay,
                     )
                 }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    HoldButton(R.drawable.tw_next, R.drawable.tw_next_press, "Next", 70.dp,
+                    HoldButton(R.drawable.tw_next, R.drawable.tw_next_press, stringResource(R.string.next), 70.dp,
                         onTap = vm::next, onHold = { vm.seekBy(3000) })
                 }
                 Box(Modifier.weight(0.8f), contentAlignment = Alignment.Center) {
@@ -259,7 +280,7 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
                     TwButton(
                         if (showingQueue) R.drawable.tw_nowplaying else R.drawable.tw_list,
                         if (showingQueue) R.drawable.tw_nowplaying_press else R.drawable.tw_list_press,
-                        if (showingQueue) "Now playing" else "List",
+                        stringResource(if (showingQueue) R.string.now_playing else R.string.list),
                         Modifier.size(52.dp),
                     ) { panel = if (showingQueue) Panel.Art else Panel.Queue }
                 }
@@ -274,7 +295,7 @@ private enum class Panel { Art, Lyrics, Queue }
 private fun PlayerMenu(ps: PlayerUiState, actions: List<MenuAction>) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }, enabled = ps.hasMedia) {
-        Icon(Icons.Default.MoreVert, "More options", tint = Color(0xFFD0D0D0))
+        Icon(Icons.Default.MoreVert, stringResource(R.string.more_options), tint = Color(0xFFD0D0D0))
     }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         actions.forEach { a -> DropdownMenuItem(text = { Text(a.label) }, onClick = { open = false; a.onClick() }) }
@@ -387,7 +408,8 @@ private fun TwSeekBar(ps: PlayerUiState) {
             Spacer(Modifier.weight(1f))
             ab?.let { r ->
                 Text(
-                    if (r.b == null) "A ${formatTime(r.a)}" else "A-B ${formatTime(r.a)}–${formatTime(r.b)}",
+                    if (r.b == null) stringResource(R.string.ab_point_a, formatTime(r.a))
+                    else stringResource(R.string.ab_range, formatTime(r.a), formatTime(r.b)),
                     color = S4Colors.Text2, fontSize = 12.sp,
                 )
                 Spacer(Modifier.weight(1f))
@@ -418,7 +440,7 @@ private fun QueueList(ps: PlayerUiState) {
                     Text(q.artist, color = S4Colors.Text2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 IconButton(onClick = { vm.removeQueueIndex(i) }) {
-                    Icon(Icons.Default.Close, "Remove from queue", tint = S4Colors.Text2, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, stringResource(R.string.remove_from_queue), tint = S4Colors.Text2, modifier = Modifier.size(18.dp))
                 }
             }
             HorizontalDivider(color = S4Colors.Divider, thickness = 0.5.dp)
@@ -464,18 +486,18 @@ fun MiniPlayer(ps: PlayerUiState, library: Library, onOpen: () -> Unit) {
             }
             Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    TwButton(R.drawable.tw_w_prev, R.drawable.tw_w_prev_press, "Previous", Modifier.size(54.dp), onClick = vm::previous)
+                    TwButton(R.drawable.tw_w_prev, R.drawable.tw_w_prev_press, stringResource(R.string.previous), Modifier.size(54.dp), onClick = vm::previous)
                 }
                 Box(Modifier.weight(1.2f), contentAlignment = Alignment.Center) {
                     TwButton(
                         if (ps.isPlaying) R.drawable.tw_w_pause else R.drawable.tw_w_play,
                         if (ps.isPlaying) R.drawable.tw_w_pause_press else R.drawable.tw_w_play_press,
-                        if (ps.isPlaying) "Pause" else "Play",
+                        stringResource(if (ps.isPlaying) R.string.pause else R.string.play),
                         Modifier.width(72.dp).height(64.dp), onClick = vm::togglePlay,
                     )
                 }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    TwButton(R.drawable.tw_w_next, R.drawable.tw_w_next_press, "Next", Modifier.size(54.dp), onClick = vm::next)
+                    TwButton(R.drawable.tw_w_next, R.drawable.tw_w_next_press, stringResource(R.string.next), Modifier.size(54.dp), onClick = vm::next)
                 }
             }
         }

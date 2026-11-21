@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -150,21 +151,21 @@ private fun PermissionGate(onGranted: () -> Unit, content: @Composable () -> Uni
             Icon(Icons.Default.LibraryMusic, null, tint = S4Colors.Accent, modifier = Modifier.size(72.dp))
             Spacer(Modifier.height(16.dp))
             Text(
-                "S4 Music needs permission to read the audio files on your device.",
+                stringResource(R.string.permission_rationale),
                 color = S4Colors.Text1, textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = { launcher.launch(requested) },
                 colors = ButtonDefaults.buttonColors(containerColor = S4Colors.Accent),
-            ) { Text("Allow access") }
+            ) { Text(stringResource(R.string.permission_allow)) }
             if (asked) {
                 TextButton(onClick = {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                             Uri.fromParts("package", context.packageName, null))
                     )
-                }) { Text("Open app settings", color = S4Colors.Text2) }
+                }) { Text(stringResource(R.string.open_app_settings), color = S4Colors.Text2) }
             }
         }
     }

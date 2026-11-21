@@ -3,6 +3,7 @@
 package dev.s4music.player.ui
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.PluralsRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NewReleases
@@ -56,7 +58,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -70,12 +71,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.s4music.player.R
+import dev.s4music.player.data.AppSettings
+import dev.s4music.player.data.Favourites
+import dev.s4music.player.data.LibraryTabId
+import dev.s4music.player.data.SongSort
 import dev.s4music.player.data.Library
 import dev.s4music.player.data.Playlist
 import dev.s4music.player.data.PlaylistStore
@@ -83,61 +91,80 @@ import dev.s4music.player.data.Song
 import dev.s4music.player.data.SongGroup
 import dev.s4music.player.ui.theme.S4Colors
 
-private data class LibraryTab(val label: String, @DrawableRes val icon: Int)
-
-private val TABS = listOf(
-    LibraryTab("Songs", R.drawable.tw_tab_songs),
-    LibraryTab("Playlists", R.drawable.tw_tab_playlists),
-    LibraryTab("Albums", R.drawable.tw_tab_albums),
-    LibraryTab("Artists", R.drawable.tw_tab_artists),
-    LibraryTab("Genres", R.drawable.tw_tab_genres),
-    LibraryTab("Folders", R.drawable.tw_tab_folders),
-)
+@DrawableRes
+private fun LibraryTabId.icon(): Int = when (this) {
+    LibraryTabId.SONGS -> R.drawable.tw_tab_songs
+    LibraryTabId.PLAYLISTS -> R.drawable.tw_tab_playlists
+    LibraryTabId.ALBUMS -> R.drawable.tw_tab_albums
+    LibraryTabId.ARTISTS -> R.drawable.tw_tab_artists
+    LibraryTabId.GENRES -> R.drawable.tw_tab_genres
+    LibraryTabId.FOLDERS -> R.drawable.tw_tab_folders
+}
 
 private val TabSelected = Brush.verticalGradient(listOf(Color(0xFF4F8DBC), Color(0xFF3E76A1)))
 private val TabNormal = Brush.verticalGradient(listOf(Color(0xFF27425A), Color(0xFF1C3549)))
 private val TabBorder = Color(0xFF02080D)   // near-black separators, as on TouchWiz
 private val TabBorderWidth = 2.dp
 
-fun songsLabel(n: Int) = if (n == 1) "1 song" else "$n songs"
+@Composable
+fun songsLabel(n: Int) = pluralStringResource(R.plurals.songs_count, n, n)
+
+/** Section letter source for the A-Z index when songs are in [this] order; null = no index. */
+fun SongSort.indexKey(): ((Song) -> String)? = when (this) {
+    SongSort.TITLE -> { s -> s.title }
+    SongSort.ARTIST -> { s -> s.artist }
+    SongSort.ALBUM -> { s -> s.album }
+    SongSort.DATE_ADDED -> null
+}
 
 @Composable
 fun LibraryScreen(library: Library, loading: Boolean, playlists: List<Playlist>, currentId: Long?) {
     val ui = LocalUi.current
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    val settings by AppSettings.settings.collectAsStateWithLifecycle()
+    val tabs = settings.visibleTabs
+    var tabKey by rememberSaveable { mutableStateOf(LibraryTabId.SONGS.key) }
+    val tab = LibraryTabId.fromKey(tabKey)?.takeIf { it in tabs } ?: tabs.first()
 
     // Search + menu at the right of the "Shuffle" row (the S4 used its hardware menu key).
     val actions: @Composable RowScope.() -> Unit = {
         IconButton(onClick = { ui.navigate(Screen.Search) }) {
-            Icon(Icons.Default.Search, "Search", tint = Color(0xFFD0D0D0))
+            Icon(Icons.Default.Search, stringResource(R.string.search), tint = Color(0xFFD0D0D0))
         }
+        val playlistItems = if (tab == LibraryTabId.PLAYLISTS) listOf(
+            MenuAction(stringResource(R.string.import_playlists)) { ui.importPlaylists() },
+            MenuAction(stringResource(R.string.export_all_playlists)) { ui.exportAllPlaylists() },
+        ) else emptyList()
         OverflowMenu(
             listOf(
-                MenuAction("Search") { ui.navigate(Screen.Search) },
-                MenuAction("SoundAlive") { ui.showDialog(GlobalDialog.SoundAlive) },
-                MenuAction("Play speed") { ui.showDialog(GlobalDialog.PlaySpeed) },
-                MenuAction("Music auto off") { ui.showDialog(GlobalDialog.SleepTimer) },
+                MenuAction(stringResource(R.string.search)) { ui.navigate(Screen.Search) },
+            ) + playlistItems + listOf(
+                MenuAction(stringResource(R.string.soundalive)) { ui.showDialog(GlobalDialog.SoundAlive) },
+                MenuAction(stringResource(R.string.play_speed)) { ui.showDialog(GlobalDialog.PlaySpeed) },
+                MenuAction(stringResource(R.string.music_auto_off)) { ui.showDialog(GlobalDialog.SleepTimer) },
+                MenuAction(stringResource(R.string.settings)) { ui.navigate(Screen.Settings) },
             ),
             tint = Color(0xFFD0D0D0),
         )
     }
 
     Column(Modifier.fillMaxSize().background(Color.Black)) {
-        TwTabBar(tab) { tab = it }
+        TwTabBar(tabs, tab) { tabKey = it.key }
         if (loading) {
             LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = S4Colors.Accent, trackColor = Color.Black)
         }
         Box(Modifier.weight(1f)) {
             when (tab) {
-                0 -> SongList(library.songs, currentId, indexed = true, actions = actions,
-                    emptyText = if (loading) "" else "No songs")
-                1 -> PlaylistsTab(playlists, library, actions)
-                2 -> AlbumsTab(library, actions)
-                3 -> ArtistsTab(library, actions)
-                4 -> GroupsTab(library.genres, Icons.Default.Category, "No genres", "genres", actions) {
+                LibraryTabId.SONGS -> SongList(library.songs, currentId, indexKeyOf = settings.songSort.indexKey(),
+                    actions = actions, emptyText = if (loading) "" else stringResource(R.string.no_songs))
+                LibraryTabId.PLAYLISTS -> PlaylistsTab(playlists, library, actions)
+                LibraryTabId.ALBUMS -> AlbumsTab(library, actions)
+                LibraryTabId.ARTISTS -> ArtistsTab(library, actions)
+                LibraryTabId.GENRES -> GroupsTab(library.genres, Icons.Default.Category, stringResource(R.string.no_genres),
+                    R.plurals.genres_count, actions) {
                     Screen.Songs(it.name, SongSource.Genre(it.key))
                 }
-                else -> GroupsTab(library.folders, Icons.Default.Folder, "No folders", "folders", actions) {
+                LibraryTabId.FOLDERS -> GroupsTab(library.folders, Icons.Default.Folder, stringResource(R.string.no_folders),
+                    R.plurals.folders_count, actions) {
                     Screen.Songs(it.name, SongSource.Folder(it.key))
                 }
             }
@@ -151,30 +178,32 @@ fun LibraryScreen(library: Library, loading: Boolean, playlists: List<Playlist>,
  * stays inside its own borders.
  */
 @Composable
-private fun TwTabBar(selected: Int, onSelect: (Int) -> Unit) {
+private fun TwTabBar(tabs: List<LibraryTabId>, selectedTab: LibraryTabId, onSelect: (LibraryTabId) -> Unit) {
+    val selected = tabs.indexOf(selectedTab)
+    val perScreen = tabs.size.coerceAtMost(4)
     val scroll = rememberScrollState()
     BoxWithConstraints(Modifier.fillMaxWidth().background(TabBorder)) {
         // 4 tabs + 3 separators fill the screen exactly, so the scroll stops on tab edges.
-        val tabWidth = (maxWidth - TabBorderWidth * 3) / 4
+        val tabWidth = (maxWidth - TabBorderWidth * (perScreen - 1)) / perScreen
         val stepPx = with(LocalDensity.current) { (tabWidth + TabBorderWidth).roundToPx() }
         LaunchedEffect(selected) {
-            scroll.animateScrollTo((selected - 1).coerceIn(0, TABS.size - 4) * stepPx)
+            scroll.animateScrollTo((selected - 1).coerceIn(0, tabs.size - perScreen) * stepPx)
         }
         Column {
             Row(Modifier.horizontalScroll(scroll).height(76.dp)) {
-                TABS.forEachIndexed { i, t ->
+                tabs.forEachIndexed { i, t ->
                     val isSel = i == selected
                     Column(
                         Modifier.width(tabWidth).fillMaxHeight()
                             .background(if (isSel) TabSelected else TabNormal)
-                            .clickable { onSelect(i) },
+                            .clickable { onSelect(t) },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Image(painterResource(t.icon), null, Modifier.size(36.dp), alpha = if (isSel) 1f else 0.85f)
-                        Text(t.label, color = Color.White, fontSize = 15.sp, maxLines = 1)
+                        Image(painterResource(t.icon()), null, Modifier.size(36.dp), alpha = if (isSel) 1f else 0.85f)
+                        Text(stringResource(t.labelRes()), color = Color.White, fontSize = 15.sp, maxLines = 1)
                     }
-                    if (i < TABS.lastIndex) Spacer(Modifier.width(TabBorderWidth).fillMaxHeight())
+                    if (i < tabs.lastIndex) Spacer(Modifier.width(TabBorderWidth).fillMaxHeight())
                 }
             }
             Spacer(Modifier.fillMaxWidth().height(TabBorderWidth).background(Color.Black))
@@ -187,13 +216,15 @@ private fun TwTabBar(selected: Int, onSelect: (Int) -> Unit) {
 fun SongList(
     songs: List<Song>,
     currentId: Long?,
-    indexed: Boolean,
-    extraMenu: (Int) -> List<MenuAction> = { emptyList() },
+    /** Text whose first letter drives the A-Z index; must match the list's order. Null = no index. */
+    indexKeyOf: ((Song) -> String)?,
+    extraMenu: @Composable (Int) -> List<MenuAction> = { emptyList() },
     header: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
-    emptyText: String = "No songs",
+    emptyText: String = stringResource(R.string.no_songs),
 ) {
     val ui = LocalUi.current
+    val favourites by Favourites.ids.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     Column(Modifier.fillMaxSize()) {
         ShuffleHeader(if (songs.isEmpty()) null else ({ ui.player.playSongs(songs, shuffle = true) }), actions)
@@ -206,15 +237,15 @@ fun SongList(
             LazyColumn(Modifier.fillMaxSize(), state = listState) {
                 header?.let { item { it() } }
                 itemsIndexed(songs, key = { i, s -> "${s.id}#$i" }) { i, song ->
-                    SongRow(song, song.id == currentId, ui.songMenu(song, extraMenu(i))) {
+                    SongRow(song, song.id == currentId, ui.songMenu(song, song.id in favourites, extraMenu(i))) {
                         ui.player.playSongs(songs, i)
                     }
                 }
                 if (songs.isNotEmpty()) item { CountFooter(songsLabel(songs.size)) }
             }
         }
-        if (indexed && songs.isNotEmpty()) {
-            val keys = remember(songs) { songs.map { indexKey(it.title) } }
+        if (indexKeyOf != null && songs.isNotEmpty()) {
+            val keys = remember(songs, indexKeyOf) { songs.map { indexKey(indexKeyOf(it)) } }
             AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it + offset) }, content = list)
         } else list()
     }
@@ -226,22 +257,32 @@ private fun PlaylistsTab(playlists: List<Playlist>, library: Library, actions: @
     var creating by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Playlist?>(null) }
     var deleting by remember { mutableStateOf<Playlist?>(null) }
+    val favouriteIds by Favourites.ids.collectAsStateWithLifecycle()
+    val favouriteCount = favouriteIds.count { it in library.byId }
 
     Column(Modifier.fillMaxSize()) {
         ShuffleHeader(null, actions)
         LazyColumn(Modifier.fillMaxSize()) {
-            item { GroupRow("Create playlist", "", onClick = { creating = true }, icon = Icons.Default.Add) }
+            item { GroupRow(stringResource(R.string.create_playlist), "", onClick = { creating = true }, icon = Icons.Default.Add) }
             item {
-                GroupRow("Most played", "", icon = Icons.Default.Star,
-                    onClick = { ui.navigate(Screen.Songs("Most played", SongSource.MostPlayed)) })
+                val title = stringResource(R.string.favourites)
+                GroupRow(title, songsLabel(favouriteCount), icon = Icons.Default.Favorite,
+                    onClick = { ui.navigate(Screen.Songs(title, SongSource.Favourites)) })
             }
             item {
-                GroupRow("Recently played", "", icon = Icons.Default.History,
-                    onClick = { ui.navigate(Screen.Songs("Recently played", SongSource.RecentlyPlayed)) })
+                val title = stringResource(R.string.most_played)
+                GroupRow(title, "", icon = Icons.Default.Star,
+                    onClick = { ui.navigate(Screen.Songs(title, SongSource.MostPlayed)) })
             }
             item {
-                GroupRow("Recently added", "", icon = Icons.Default.NewReleases,
-                    onClick = { ui.navigate(Screen.Songs("Recently added", SongSource.RecentlyAdded)) })
+                val title = stringResource(R.string.recently_played)
+                GroupRow(title, "", icon = Icons.Default.History,
+                    onClick = { ui.navigate(Screen.Songs(title, SongSource.RecentlyPlayed)) })
+            }
+            item {
+                val title = stringResource(R.string.recently_added)
+                GroupRow(title, "", icon = Icons.Default.NewReleases,
+                    onClick = { ui.navigate(Screen.Songs(title, SongSource.RecentlyAdded)) })
             }
             items(playlists, key = { it.id }) { p ->
                 val songs = { p.songIds.mapNotNull { library.byId[it] } }
@@ -251,23 +292,25 @@ private fun PlaylistsTab(playlists: List<Playlist>, library: Library, actions: @
                     icon = Icons.AutoMirrored.Filled.QueueMusic,
                     onClick = { ui.navigate(Screen.Songs(p.name, SongSource.UserPlaylist(p.id))) },
                     menu = ui.groupMenu(songs, listOf(
-                        MenuAction("Edit title") { renaming = p },
-                        MenuAction("Delete playlist") { deleting = p },
-                    ), allowDelete = false).filterNot { it.label == "Add to playlist" },
+                        MenuAction(stringResource(R.string.edit_title)) { renaming = p },
+                        MenuAction(stringResource(R.string.export_playlist)) { ui.exportPlaylist(p.name, songs()) },
+                        MenuAction(stringResource(R.string.delete_playlist)) { deleting = p },
+                    ), allowDelete = false, allowAddToPlaylist = false),
                 )
             }
-            item { CountFooter(if (playlists.size == 1) "1 playlist" else "${playlists.size} playlists") }
+            item { CountFooter(pluralStringResource(R.plurals.playlists_count, playlists.size, playlists.size)) }
         }
     }
 
-    if (creating) TextInputDialog("Create playlist", "My playlist", "Create",
-        onConfirm = { PlaylistStore.create(it); creating = false }, onDismiss = { creating = false })
+    if (creating) TextInputDialog(stringResource(R.string.create_playlist), stringResource(R.string.default_playlist_name),
+        stringResource(R.string.create), onConfirm = { PlaylistStore.create(it); creating = false }, onDismiss = { creating = false })
     renaming?.let { p ->
-        TextInputDialog("Edit title", p.name, "Save",
+        TextInputDialog(stringResource(R.string.edit_title), p.name, stringResource(R.string.save),
             onConfirm = { PlaylistStore.rename(p.id, it); renaming = null }, onDismiss = { renaming = null })
     }
     deleting?.let { p ->
-        ConfirmDialog("Delete playlist", "\"${p.name}\" will be deleted.", "Delete",
+        ConfirmDialog(stringResource(R.string.delete_playlist), stringResource(R.string.delete_playlist_message, p.name),
+            stringResource(R.string.delete),
             onConfirm = { PlaylistStore.delete(p.id); deleting = null }, onDismiss = { deleting = null })
     }
 }
@@ -280,7 +323,7 @@ private fun AlbumsTab(library: Library, actions: @Composable RowScope.() -> Unit
     Column(Modifier.fillMaxSize()) {
         ShuffleHeader(if (library.songs.isEmpty()) null else ({ ui.player.playSongs(library.songs, shuffle = true) }), actions)
         if (library.albums.isEmpty()) {
-            EmptyMessage("No albums")
+            EmptyMessage(stringResource(R.string.no_albums))
             return@Column
         }
         AlphabetIndexed(keys, scrollTo = { gridState.scrollToItem(it) }) {
@@ -300,10 +343,12 @@ private fun AlbumsTab(library: Library, actions: @Composable RowScope.() -> Unit
                         Text(album.artist, color = Color(0xFFA3B0BB), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     if (menuOpen) ContextMenuDialog(album.title, ui.groupMenu({ album.songs },
-                        listOf(MenuAction("Change album cover") { ui.changeAlbumCover(album.songs) }))) { menuOpen = false }
+                        listOf(MenuAction(stringResource(R.string.change_album_cover)) { ui.changeAlbumCover(album.songs) }))) {
+                        menuOpen = false
+                    }
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    CountFooter(if (library.albums.size == 1) "1 album" else "${library.albums.size} albums")
+                    CountFooter(pluralStringResource(R.plurals.albums_count, library.albums.size, library.albums.size))
                 }
             }
         }
@@ -318,7 +363,7 @@ private fun ArtistsTab(library: Library, actions: @Composable RowScope.() -> Uni
     Column(Modifier.fillMaxSize()) {
         ShuffleHeader(null, actions)
         if (library.artists.isEmpty()) {
-            EmptyMessage("No artists")
+            EmptyMessage(stringResource(R.string.no_artists))
             return@Column
         }
         AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it) }) {
@@ -326,13 +371,15 @@ private fun ArtistsTab(library: Library, actions: @Composable RowScope.() -> Uni
                 items(library.artists, key = { it.id }) { artist ->
                     GroupRow(
                         title = artist.name,
-                        subtitle = "${artist.albumCount} album${if (artist.albumCount == 1) "" else "s"}, ${songsLabel(artist.songs.size)}",
+                        subtitle = stringResource(R.string.artist_subtitle,
+                            pluralStringResource(R.plurals.albums_count, artist.albumCount, artist.albumCount),
+                            songsLabel(artist.songs.size)),
                         artAlbumId = artist.songs.first().albumId,
                         onClick = { ui.navigate(Screen.Songs(artist.name, SongSource.Artist(artist.id))) },
                         menu = ui.groupMenu({ artist.songs }),
                     )
                 }
-                item { CountFooter(if (library.artists.size == 1) "1 artist" else "${library.artists.size} artists") }
+                item { CountFooter(pluralStringResource(R.plurals.artists_count, library.artists.size, library.artists.size)) }
             }
         }
     }
@@ -343,7 +390,7 @@ private fun GroupsTab(
     groups: List<SongGroup>,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     emptyText: String,
-    noun: String,
+    @PluralsRes countPlural: Int,
     actions: @Composable RowScope.() -> Unit,
     screenFor: (SongGroup) -> Screen,
 ) {
@@ -367,7 +414,7 @@ private fun GroupsTab(
                         menu = ui.groupMenu({ g.songs }),
                     )
                 }
-                item { CountFooter("${groups.size} $noun") }
+                item { CountFooter(pluralStringResource(countPlural, groups.size, groups.size)) }
             }
         }
         AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it) }, content = content)
@@ -408,13 +455,19 @@ fun SongsScreen(
                 }
             }
         }
+        val sort = AppSettings.settings.collectAsStateWithLifecycle().value.songSort
         SongList(
             songs, currentId,
-            indexed = source is SongSource.Artist || source is SongSource.Genre || source is SongSource.Folder,
+            indexKeyOf = when (source) {
+                is SongSource.Artist -> { s -> s.album }   // artist pages are ordered by album
+                is SongSource.Genre, is SongSource.Folder -> sort.indexKey()
+                else -> null
+            },
             header = header,
             extraMenu = { index ->
-                if (playlist != null) listOf(MenuAction("Remove from playlist") { PlaylistStore.removeAt(playlist.id, index) })
-                else emptyList()
+                if (playlist != null) {
+                    listOf(MenuAction(stringResource(R.string.remove_from_playlist)) { PlaylistStore.removeAt(playlist.id, index) })
+                } else emptyList()
             },
             actions = {
                 if (songs.isNotEmpty() || playlist != null) {
@@ -423,11 +476,15 @@ fun SongsScreen(
                             { songs },
                             when {
                                 playlist != null -> listOf(
-                                    MenuAction("Edit title") { renaming = true },
-                                    MenuAction("Delete playlist") { deleting = true },
+                                    MenuAction(stringResource(R.string.edit_title)) { renaming = true },
+                                    MenuAction(stringResource(R.string.export_playlist)) { ui.exportPlaylist(playlist.name, songs) },
+                                    MenuAction(stringResource(R.string.delete_playlist)) { deleting = true },
+                                )
+                                source is SongSource.Favourites -> listOf(
+                                    MenuAction(stringResource(R.string.export_playlist)) { ui.exportPlaylist(screen.title, songs) },
                                 )
                                 source is SongSource.Album -> listOf(
-                                    MenuAction("Change album cover") { ui.changeAlbumCover(songs) },
+                                    MenuAction(stringResource(R.string.change_album_cover)) { ui.changeAlbumCover(songs) },
                                 )
                                 else -> emptyList()
                             },
@@ -441,9 +498,10 @@ fun SongsScreen(
         )
     }
 
-    if (renaming && playlist != null) TextInputDialog("Edit title", playlist.name, "Save",
+    if (renaming && playlist != null) TextInputDialog(stringResource(R.string.edit_title), playlist.name, stringResource(R.string.save),
         onConfirm = { PlaylistStore.rename(playlist.id, it); renaming = false }, onDismiss = { renaming = false })
-    if (deleting && playlist != null) ConfirmDialog("Delete playlist", "\"${playlist.name}\" will be deleted.", "Delete",
+    if (deleting && playlist != null) ConfirmDialog(stringResource(R.string.delete_playlist),
+        stringResource(R.string.delete_playlist_message, playlist.name), stringResource(R.string.delete),
         onConfirm = { PlaylistStore.delete(playlist.id); deleting = false; onBack() }, onDismiss = { deleting = false })
 }
 
@@ -453,6 +511,7 @@ fun SongsScreen(
 fun SearchScreen(library: Library, currentId: Long?, onBack: () -> Unit) {
     val ui = LocalUi.current
     var query by rememberSaveable { mutableStateOf("") }
+    val favourites by Favourites.ids.collectAsStateWithLifecycle()
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
 
@@ -468,17 +527,19 @@ fun SearchScreen(library: Library, currentId: Long?, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Color.Black)) {
         Row(Modifier.fillMaxWidth().background(S4Colors.HeaderGradient).padding(end = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = S4Colors.Text1) }
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = S4Colors.Text1)
+            }
             TextField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.weight(1f).focusRequester(focus),
-                placeholder = { Text("Artists, albums and songs") },
+                placeholder = { Text(stringResource(R.string.search_hint)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 trailingIcon = {
                     if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                        Icon(Icons.Default.Close, "Clear", tint = S4Colors.Text2)
+                        Icon(Icons.Default.Close, stringResource(R.string.clear), tint = S4Colors.Text2)
                     }
                 },
                 colors = TextFieldDefaults.colors(
@@ -489,28 +550,28 @@ fun SearchScreen(library: Library, currentId: Long?, onBack: () -> Unit) {
             )
         }
         if (q.isNotEmpty() && songs.isEmpty() && albums.isEmpty() && artists.isEmpty()) {
-            EmptyMessage("No results found")
+            EmptyMessage(stringResource(R.string.no_results))
             return@Column
         }
         LazyColumn(Modifier.fillMaxSize()) {
             if (artists.isNotEmpty()) {
-                item { SectionHeader("Artists (${artists.size})") }
+                item { SectionHeader(stringResource(R.string.section_artists, artists.size)) }
                 items(artists, key = { "ar${it.id}" }) { a ->
                     GroupRow(a.name, songsLabel(a.songs.size), artAlbumId = a.songs.first().albumId,
                         onClick = { ui.navigate(Screen.Songs(a.name, SongSource.Artist(a.id))) })
                 }
             }
             if (albums.isNotEmpty()) {
-                item { SectionHeader("Albums (${albums.size})") }
+                item { SectionHeader(stringResource(R.string.section_albums, albums.size)) }
                 items(albums, key = { "al${it.id}" }) { a ->
                     GroupRow(a.title, a.artist, artAlbumId = a.id,
                         onClick = { ui.navigate(Screen.Songs(a.title, SongSource.Album(a.id))) })
                 }
             }
             if (songs.isNotEmpty()) {
-                item { SectionHeader("Songs (${songs.size})") }
+                item { SectionHeader(stringResource(R.string.section_songs, songs.size)) }
                 itemsIndexed(songs, key = { _, s -> "s${s.id}" }) { i, s ->
-                    SongRow(s, s.id == currentId, ui.songMenu(s)) { ui.player.playSongs(songs, i) }
+                    SongRow(s, s.id == currentId, ui.songMenu(s, s.id in favourites)) { ui.player.playSongs(songs, i) }
                 }
             }
         }

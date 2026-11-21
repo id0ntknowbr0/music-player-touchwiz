@@ -97,11 +97,11 @@ object WidgetUpdater {
     fun build(context: Context, s: WidgetState, art: Bitmap?): RemoteViews =
         RemoteViews(context.packageName, R.layout.widget_player).apply {
             setTextViewText(R.id.widget_title, s.title.ifEmpty { context.getString(R.string.app_name) })
-            setTextViewText(R.id.widget_artist, s.artist.ifEmpty { "Tap play to resume" })
+            setTextViewText(R.id.widget_artist, s.artist.ifEmpty { context.getString(R.string.widget_tap_to_resume) })
             if (art != null) setImageViewBitmap(R.id.widget_art, art)
             else setImageViewResource(R.id.widget_art, R.drawable.tw_default_art_large)
             setImageViewResource(R.id.widget_play, if (s.playing) R.drawable.w_btn_pause else R.drawable.w_btn_play)
-            setContentDescription(R.id.widget_play, if (s.playing) "Pause" else "Play")
+            setContentDescription(R.id.widget_play, context.getString(if (s.playing) R.string.pause else R.string.play))
             setImageViewResource(R.id.widget_shuffle, if (s.shuffle) R.drawable.tw_w_shuffle_on else R.drawable.tw_w_shuffle_off)
             setImageViewResource(R.id.widget_repeat, when (s.repeatMode) {
                 Player.REPEAT_MODE_ALL -> R.drawable.tw_w_repeat_all

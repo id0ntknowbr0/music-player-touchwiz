@@ -57,6 +57,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import dev.s4music.player.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -140,7 +142,7 @@ fun HeaderBar(
     ) {
         if (onBack != null) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = S4Colors.Text1)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = S4Colors.Text1)
             }
         } else Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
@@ -160,7 +162,7 @@ data class MenuAction(val label: String, val onClick: () -> Unit)
 fun OverflowMenu(actions: List<MenuAction>, tint: androidx.compose.ui.graphics.Color = S4Colors.Text2) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, "More options", tint = tint) }
+        IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_options), tint = tint) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             actions.forEach { a ->
                 DropdownMenuItem(text = { Text(a.label) }, onClick = { open = false; a.onClick() })
@@ -188,7 +190,7 @@ fun ShuffleHeader(onShuffle: (() -> Unit)?, trailing: @Composable RowScope.() ->
                 Modifier.fillMaxHeight().clickable(onClick = onShuffle).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Shuffle", color = RowTitle, fontSize = 18.sp)
+                Text(stringResource(R.string.shuffle), color = RowTitle, fontSize = 18.sp)
                 Spacer(Modifier.width(8.dp))
                 Image(androidx.compose.ui.res.painterResource(dev.s4music.player.R.drawable.tw_list_shuffle), null,
                     Modifier.size(24.dp))
@@ -223,7 +225,7 @@ fun PlayingIndicator(modifier: Modifier = Modifier) {
         1 -> dev.s4music.player.R.drawable.tw_playing_ani_2
         else -> dev.s4music.player.R.drawable.tw_playing_ani_3
     }
-    Image(androidx.compose.ui.res.painterResource(res), "Now playing", modifier.size(24.dp))
+    Image(androidx.compose.ui.res.painterResource(res), stringResource(R.string.now_playing), modifier.size(24.dp))
 }
 
 /** Long-press context menu, styled like the TouchWiz list popup (title + options). */
@@ -391,5 +393,3 @@ fun formatTime(ms: Long): String {
     val h = total / 3600; val m = (total % 3600) / 60; val s = total % 60
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
 }
-
-fun tracksLabel(n: Int) = if (n == 1) "1 track" else "$n tracks"

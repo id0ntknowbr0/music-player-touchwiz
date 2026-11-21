@@ -90,7 +90,7 @@ object LyricsRepository {
             out.toByteArray()
         } ?: return@withContext false
         if (bytes.isEmpty() || bytes.size > MAX_BYTES) return@withContext false
-        val text = String(bytes, Charsets.UTF_8).removePrefix("﻿")
+        val text = String(bytes, Charsets.UTF_8).removePrefix("\uFEFF")
         if (Lyrics.parse(text, Lyrics.Source.Saved) == null) return@withContext false
         save(context, songId, text)
         true
@@ -98,24 +98,20 @@ object LyricsRepository {
 
     // ---- Online lookup (LRCLIB), only after the user has agreed ----
 
-    private const val PREFS = "lyrics"
-    private const val KEY_CONSENT = "web_consent"
+    fun hasWebConsent() = AppSettings.current.lyricsOnline
 
-    fun hasWebConsent(context: Context) =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_CONSENT, false)
-
-    fun setWebConsent(context: Context, allowed: Boolean) =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_CONSENT, allowed).apply()
+    fun setWebConsent(allowed: Boolean) = AppSettings.update { it.copy(lyricsOnline = allowed) }
 
     sealed interface WebResult {
         data object Found : WebResult
         data object NotFound : WebResult
-        data class Failed(val message: String) : WebResult
+        data object NotAllowed : WebResult
+        data class Failed(val message: String?) : WebResult
     }
 
     /** Looks the song up on lrclib.net and saves the result. Sends only title, artist, album and length. */
     suspend fun fetchFromWeb(context: Context, song: Song): WebResult = withContext(Dispatchers.IO) {
-        if (!hasWebConsent(context)) return@withContext WebResult.Failed("Online lyrics not allowed")
+        if (!hasWebConsent()) return@withContext WebResult.NotAllowed
         try {
             val exact = getJson(
                 "https://lrclib.net/api/get?track_name=${enc(song.title)}&artist_name=${enc(song.artist)}" +
@@ -136,7 +132,7 @@ object LyricsRepository {
             save(context, song.id, text)
             WebResult.Found
         } catch (e: Exception) {
-            WebResult.Failed(e.message ?: "Network error")
+            WebResult.Failed(e.message)
         }
     }
 
@@ -153,7 +149,7 @@ object LyricsRepository {
             when (conn.responseCode) {
                 200 -> conn.inputStream.bufferedReader().use { it.readText() }
                 404 -> null
-                else -> throw RuntimeException("Server returned ${conn.responseCode}")
+                else -> throw RuntimeException("HTTP ${conn.responseCode}")
             }
         } finally {
             conn.disconnect()

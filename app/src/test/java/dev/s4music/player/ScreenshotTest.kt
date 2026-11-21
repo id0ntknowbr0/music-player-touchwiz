@@ -40,7 +40,7 @@ class ScreenshotTest {
         org.robolectric.Shadows.shadowOf(app).declareComponentUnbindable(
             android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
         val vm = PlayerViewModel(app)
-        val ui = UiActions(vm, {}, {}, {}, {}, {}, {}, {}, {})
+        val ui = UiActions(app, vm)
         captureRoboImage("build/screens/now_playing.png") {
             S4Theme { CompositionLocalProvider(LocalUi provides ui) { NowPlayingScreen(state, Library.EMPTY, onClose = {}) } }
         }
@@ -51,7 +51,7 @@ class ScreenshotTest {
         org.robolectric.Shadows.shadowOf(app).declareComponentUnbindable(
             android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
         val vm = PlayerViewModel(app)
-        val ui = UiActions(vm, {}, {}, {}, {}, {}, {}, {}, {})
+        val ui = UiActions(app, vm)
         val names = listOf("Add Space and Time" to "Blush/Blink", "Breaking Silence" to "Radiance", "Jam Beats Vol I" to "DJ Jam Beats",
             "Over the horizon" to "Samsung", "Passing Thru Fears" to "Invoke", "Point of No Return" to "Adverse to Reaction",
             "Sessions from the Loft" to "Midnight Passing", "Stronghold Syndrome" to "Brice Thomas", "Tidal" to "Waves", "Zero" to "Nil")
@@ -80,7 +80,7 @@ class ScreenshotTest {
         org.robolectric.Shadows.shadowOf(app).declareComponentUnbindable(
             android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
         val vm = PlayerViewModel(app)
-        val ui = UiActions(vm, {}, {}, {}, {}, {}, {}, {}, {})
+        val ui = UiActions(app, vm)
         val names = listOf("Add Space and Time" to "Blush/Blink", "Breaking Silence" to "Radiance", "Jam Beats Vol I" to "DJ Jam Beats",
             "Over the horizon" to "Samsung", "Passing Thru Fears" to "Invoke", "Point of No Return" to "Adverse to Reaction",
             "Sessions from the Loft" to "Midnight Passing", "Stronghold Syndrome" to "Brice Thomas", "Tidal" to "Waves", "Zero" to "Nil")
@@ -101,6 +101,30 @@ class ScreenshotTest {
                     }
                 }
             }
+        }
+    }
+
+    @Test
+    fun nowPlayingFavourite() {
+        org.robolectric.Shadows.shadowOf(app).declareComponentUnbindable(
+            android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
+        val ui = UiActions(app, PlayerViewModel(app))
+        val song = dev.s4music.player.data.Song(4, "Over the horizon", "Samsung", 1, "Galaxy", 1, "Pop", 2013, 1,
+            259_000, "Music", 0, "/sdcard/Music/x.mp3", "x.mp3")
+        dev.s4music.player.data.Favourites.toggle(4)
+        val lib = dev.s4music.player.data.Library(listOf(song), emptyList(), emptyList(), emptyList(), emptyList())
+        val state = PlayerUiState(connected = true, mediaId = "4", title = song.title, artist = song.artist, album = song.album,
+            positionMs = 15_000, durationMs = 259_000, queue = listOf(QueueEntry("4", song.title, song.artist)), index = 0)
+        captureRoboImage("build/screens/now_playing_favourite.png") {
+            S4Theme { CompositionLocalProvider(LocalUi provides ui) { NowPlayingScreen(state, lib, onClose = {}) } }
+        }
+    }
+
+    @Test
+    fun settings() {
+        val vm = dev.s4music.player.ui.LibraryViewModel(app)
+        captureRoboImage("build/screens/settings.png") {
+            S4Theme { dev.s4music.player.ui.SettingsScreen(vm, onBack = {}) }
         }
     }
 

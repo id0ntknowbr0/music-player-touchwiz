@@ -42,14 +42,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.s4music.player.R
+import dev.s4music.player.data.AppSettings
 import dev.s4music.player.data.FileOps
 import dev.s4music.player.data.Lyrics
 import dev.s4music.player.data.LyricsRepository
+import dev.s4music.player.data.MediaStoreRepository
 import dev.s4music.player.data.Song
 import dev.s4music.player.data.TrackEdits
 import dev.s4music.player.ui.theme.S4Colors
@@ -73,7 +79,7 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
     var version by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var askConsent by remember { mutableStateOf(false) }
-    var consent by remember { mutableStateOf(LyricsRepository.hasWebConsent(context)) }
+    val consent = AppSettings.settings.collectAsStateWithLifecycle().value.lyricsOnline
 
     val state by produceState<LyricsState>(LyricsState.Loading, song?.id, version) {
         value = LyricsState.Loading
@@ -83,7 +89,7 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && song != null) scope.launch {
             val ok = runCatching { LyricsRepository.importFrom(context, song.id, uri) }.getOrDefault(false)
-            Toast.makeText(context, if (ok) "Lyrics imported" else "Couldn't read that file (use .lrc or .txt)",
+            Toast.makeText(context, if (ok) R.string.lyrics_imported else R.string.lyrics_import_failed,
                 Toast.LENGTH_SHORT).show()
             version++
         }
@@ -94,10 +100,13 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
         if (!consent) { askConsent = true; return }
         scope.launch {
             busy = true
-            val msg = when (val r = LyricsRepository.fetchFromWeb(context, s)) {
-                LyricsRepository.WebResult.Found -> "Lyrics found"
-                LyricsRepository.WebResult.NotFound -> "No lyrics found online for this track"
-                is LyricsRepository.WebResult.Failed -> "Couldn't search: ${r.message}"
+            val result = LyricsRepository.fetchFromWeb(context, s)
+            if (result == LyricsRepository.WebResult.NotAllowed) { busy = false; askConsent = true; return@launch }
+            val msg = when (result) {
+                LyricsRepository.WebResult.Found -> context.getString(R.string.lyrics_found)
+                is LyricsRepository.WebResult.Failed ->
+                    context.getString(R.string.lyrics_search_failed, result.message ?: context.getString(R.string.network_error))
+                else -> context.getString(R.string.lyrics_not_found)
             }
             busy = false
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -113,9 +122,9 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
             when (val st = state) {
                 LyricsState.Loading -> CircularProgressIndicator(color = S4Colors.Accent)
                 LyricsState.None -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No lyrics", color = LyricText, fontSize = 18.sp)
+                    Text(stringResource(R.string.no_lyrics), color = LyricText, fontSize = 18.sp)
                     Spacer(Modifier.height(6.dp))
-                    Text("Import a .lrc or .txt file, or search online.", color = S4Colors.Text2, fontSize = 13.sp,
+                    Text(stringResource(R.string.no_lyrics_hint), color = S4Colors.Text2, fontSize = 13.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
                 }
                 is LyricsState.Loaded -> {
@@ -154,21 +163,21 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
         Row(Modifier.fillMaxWidth().background(Color(0xFF26292C)).padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { importer.launch(arrayOf("*/*")) }, enabled = song != null) {
-                Text("Import", color = S4Colors.Accent)
+                Text(stringResource(R.string.lyrics_import), color = S4Colors.Accent)
             }
             TextButton(onClick = ::searchOnline, enabled = song != null && !busy) {
-                Text("Search online", color = S4Colors.Accent)
+                Text(stringResource(R.string.lyrics_search_online), color = S4Colors.Accent)
             }
             val loaded = state as? LyricsState.Loaded
             if (loaded?.lyrics?.source == Lyrics.Source.Saved && song != null) {
                 TextButton(onClick = { scope.launch { LyricsRepository.delete(context, song.id); version++ } }) {
-                    Text("Remove", color = S4Colors.Text2)
+                    Text(stringResource(R.string.lyrics_remove), color = S4Colors.Text2)
                 }
             } else if (consent) {
                 TextButton(onClick = {
-                    LyricsRepository.setWebConsent(context, false); consent = false
-                    Toast.makeText(context, "Online lyrics turned off", Toast.LENGTH_SHORT).show()
-                }) { Text("Online: on", color = S4Colors.Text2, fontSize = 12.sp) }
+                    LyricsRepository.setWebConsent(false)
+                    Toast.makeText(context, R.string.lyrics_online_turned_off, Toast.LENGTH_SHORT).show()
+                }) { Text(stringResource(R.string.lyrics_online_on), color = S4Colors.Text2, fontSize = 12.sp) }
             }
         }
     }
@@ -176,21 +185,17 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit) {
     if (askConsent) {
         AlertDialog(
             onDismissRequest = { askConsent = false },
-            title = { Text("Search lyrics online?") },
+            title = { Text(stringResource(R.string.lyrics_consent_title)) },
             text = {
-                Text(
-                    "To find lyrics, Music Player will send this track's title, artist, album and length to " +
-                        "lrclib.net, a free lyrics service. Nothing else is sent, and nothing is sent until you " +
-                        "tap \"Search online\".\n\nYou can turn this off again from the lyrics screen."
-                )
+                Text(stringResource(R.string.lyrics_consent_message))
             },
             confirmButton = {
                 TextButton(onClick = {
-                    LyricsRepository.setWebConsent(context, true); consent = true; askConsent = false
+                    LyricsRepository.setWebConsent(true); askConsent = false
                     searchOnline()
-                }) { Text("Allow") }
+                }) { Text(stringResource(R.string.allow)) }
             },
-            dismissButton = { TextButton(onClick = { askConsent = false }) { Text("Not now") } },
+            dismissButton = { TextButton(onClick = { askConsent = false }) { Text(stringResource(R.string.not_now)) } },
         )
     }
 }
@@ -206,9 +211,9 @@ fun EditTrackDialog(
     val ext = FileOps.extensionOf(song)
     var fileName by remember { mutableStateOf(song.displayName.removeSuffix(".$ext").ifEmpty { song.displayName }) }
     var title by remember { mutableStateOf(song.title) }
-    var artist by remember { mutableStateOf(song.artist.takeUnless { it == "Unknown artist" } ?: "") }
-    var album by remember { mutableStateOf(song.album.takeUnless { it == "Unknown album" } ?: "") }
-    var genre by remember { mutableStateOf(song.genre.takeUnless { it == "Unknown genre" } ?: "") }
+    var artist by remember { mutableStateOf(song.artist.takeUnless { it == MediaStoreRepository.UNKNOWN_ARTIST } ?: "") }
+    var album by remember { mutableStateOf(song.album.takeUnless { it == MediaStoreRepository.UNKNOWN_ALBUM } ?: "") }
+    var genre by remember { mutableStateOf(song.genre.takeUnless { it == MediaStoreRepository.UNKNOWN_GENRE } ?: "") }
     var year by remember { mutableStateOf(song.year.takeIf { it > 0 }?.toString() ?: "") }
     var cover by remember { mutableStateOf<android.net.Uri?>(null) }
     var wholeAlbum by remember { mutableStateOf(true) }
@@ -219,7 +224,7 @@ fun EditTrackDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit track info") },
+        title = { Text(stringResource(R.string.edit_track_info)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 // Cover art
@@ -234,28 +239,27 @@ fun EditTrackDialog(
                         TextButton(onClick = {
                             picker.launch(androidx.activity.result.PickVisualMediaRequest(
                                 ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        }) { Text(if (cover == null) "Change cover" else "Choose another", color = S4Colors.Accent) }
+                        }) { Text(stringResource(if (cover == null) R.string.change_cover else R.string.choose_another), color = S4Colors.Accent) }
                         if (cover != null && albumSongCount > 1) {
                             Row(verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clickable { wholeAlbum = !wholeAlbum }) {
                                 androidx.compose.material3.Checkbox(wholeAlbum, { wholeAlbum = it })
-                                Text("Use for whole album ($albumSongCount songs)", fontSize = 13.sp)
+                                Text(pluralStringResource(R.plurals.use_for_whole_album, albumSongCount, albumSongCount), fontSize = 13.sp)
                             }
                         }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(fileName, { fileName = it }, label = { Text("File name") }, singleLine = true,
+                OutlinedTextField(fileName, { fileName = it }, label = { Text(stringResource(R.string.label_file_name)) }, singleLine = true,
                     isError = invalidName, suffix = { if (ext.isNotEmpty()) Text(".$ext") })
-                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true)
-                OutlinedTextField(artist, { artist = it }, label = { Text("Artist") }, singleLine = true)
-                OutlinedTextField(album, { album = it }, label = { Text("Album") }, singleLine = true)
-                OutlinedTextField(genre, { genre = it }, label = { Text("Genre") }, singleLine = true)
-                OutlinedTextField(year, { v -> year = v.filter(Char::isDigit).take(4) }, label = { Text("Year") },
+                OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.label_title)) }, singleLine = true)
+                OutlinedTextField(artist, { artist = it }, label = { Text(stringResource(R.string.label_artist)) }, singleLine = true)
+                OutlinedTextField(album, { album = it }, label = { Text(stringResource(R.string.label_album)) }, singleLine = true)
+                OutlinedTextField(genre, { genre = it }, label = { Text(stringResource(R.string.label_genre)) }, singleLine = true)
+                OutlinedTextField(year, { v -> year = v.filter(Char::isDigit).take(4) }, label = { Text(stringResource(R.string.label_year)) },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 Spacer(Modifier.height(6.dp))
-                Text("Android will ask you to allow Music Player to modify this file.",
-                    color = S4Colors.Text2, fontSize = 12.sp)
+                Text(stringResource(R.string.modify_file_note), color = S4Colors.Text2, fontSize = 12.sp)
             }
         },
         confirmButton = {
@@ -267,9 +271,9 @@ fun EditTrackDialog(
                         cover, wholeAlbum && albumSongCount > 1,
                     )
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -289,7 +293,7 @@ private fun PickedImage(uri: android.net.Uri, modifier: Modifier) {
     }
     Box(modifier.background(Color(0xFF1E2A35))) {
         bmp?.let {
-            androidx.compose.foundation.Image(it, "New cover", Modifier.fillMaxSize(),
+            androidx.compose.foundation.Image(it, stringResource(R.string.new_cover), Modifier.fillMaxSize(),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop)
         }
     }

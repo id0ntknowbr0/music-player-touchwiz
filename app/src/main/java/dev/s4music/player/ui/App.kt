@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -32,9 +33,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.s4music.player.R
 import dev.s4music.player.data.CoverStore
+import dev.s4music.player.data.Favourites
 import dev.s4music.player.data.FileOps
 import dev.s4music.player.data.Library
+import dev.s4music.player.data.M3u
 import dev.s4music.player.data.PlayStats
 import dev.s4music.player.data.Playlist
 import dev.s4music.player.data.PlaylistStore
@@ -53,17 +57,24 @@ sealed interface SongSource {
     data object MostPlayed : SongSource
     data object RecentlyPlayed : SongSource
     data object RecentlyAdded : SongSource
+    data object Favourites : SongSource
 }
 
 sealed interface Screen {
     data object Library : Screen
     data object Search : Screen
     data class Songs(val title: String, val source: SongSource) : Screen
+    data object Settings : Screen
 }
 
 private const val SMART_LIMIT = 50
 
-fun SongSource.resolve(lib: Library, playlists: List<Playlist>, stats: Map<Long, PlayStats.Stat>): List<Song> =
+fun SongSource.resolve(
+    lib: Library,
+    playlists: List<Playlist>,
+    stats: Map<Long, PlayStats.Stat>,
+    favourites: List<Long>,
+): List<Song> =
     when (this) {
         is SongSource.Album -> lib.albums.firstOrNull { it.id == id }?.songs.orEmpty()
         is SongSource.Artist -> lib.artists.firstOrNull { it.id == id }?.songs.orEmpty()
@@ -75,37 +86,59 @@ fun SongSource.resolve(lib: Library, playlists: List<Playlist>, stats: Map<Long,
         SongSource.RecentlyPlayed -> stats.entries.sortedByDescending { it.value.lastPlayed }
             .mapNotNull { lib.byId[it.key] }.take(SMART_LIMIT)
         SongSource.RecentlyAdded -> lib.songs.sortedByDescending { it.dateAddedSec }.take(SMART_LIMIT)
+        SongSource.Favourites -> favourites.mapNotNull { lib.byId[it] }
     }
 
 enum class GlobalDialog { SoundAlive, PlaySpeed, SleepTimer }
 
 /** Actions any screen can trigger; provided through [LocalUi]. */
 class UiActions(
+    val context: Context,
     val player: PlayerViewModel,
-    val navigate: (Screen) -> Unit,
-    val addToPlaylist: (List<Song>) -> Unit,
-    val showDetails: (Song) -> Unit,
-    val showDialog: (GlobalDialog) -> Unit,
-    val closePlayer: () -> Unit,
-    val editSong: (Song) -> Unit,
-    val deleteSongs: (List<Song>) -> Unit,
-    val changeAlbumCover: (List<Song>) -> Unit,
+    val navigate: (Screen) -> Unit = {},
+    val addToPlaylist: (List<Song>) -> Unit = {},
+    val showDetails: (Song) -> Unit = {},
+    val showDialog: (GlobalDialog) -> Unit = {},
+    val closePlayer: () -> Unit = {},
+    val editSong: (Song) -> Unit = {},
+    val deleteSongs: (List<Song>) -> Unit = {},
+    val changeAlbumCover: (List<Song>) -> Unit = {},
+    val exportPlaylist: (name: String, songs: List<Song>) -> Unit = { _, _ -> },
+    val exportAllPlaylists: () -> Unit = {},
+    val importPlaylists: () -> Unit = {},
 ) {
-    fun songMenu(song: Song, extra: List<MenuAction> = emptyList()) = listOf(
-        MenuAction("Play next") { player.playNext(listOf(song)) },
-        MenuAction("Add to queue") { player.addToQueue(listOf(song)) },
-        MenuAction("Add to playlist") { addToPlaylist(listOf(song)) },
-        MenuAction("Edit track info") { editSong(song) },
-        MenuAction("Details") { showDetails(song) },
-    ) + extra + MenuAction("Delete") { deleteSongs(listOf(song)) }
+    private fun str(@StringRes id: Int) = context.getString(id)
 
-    fun groupMenu(songs: () -> List<Song>, extra: List<MenuAction> = emptyList(), allowDelete: Boolean = true) = listOf(
-        MenuAction("Play") { player.playSongs(songs()) },
-        MenuAction("Shuffle") { player.playSongs(songs(), shuffle = true) },
-        MenuAction("Play next") { player.playNext(songs()) },
-        MenuAction("Add to queue") { player.addToQueue(songs()) },
-        MenuAction("Add to playlist") { addToPlaylist(songs()) },
-    ) + extra + if (allowDelete) listOf(MenuAction("Delete tracks") { deleteSongs(songs()) }) else emptyList()
+    fun toggleFavourite(song: Song) {
+        val added = Favourites.toggle(song.id)
+        Toast.makeText(context, if (added) R.string.added_to_favourites else R.string.removed_from_favourites,
+            Toast.LENGTH_SHORT).show()
+    }
+
+    /** [isFavourite] comes from the caller's collected state so the label stays current. */
+    fun songMenu(song: Song, isFavourite: Boolean, extra: List<MenuAction> = emptyList()) = listOf(
+        MenuAction(str(R.string.play_next)) { player.playNext(listOf(song)) },
+        MenuAction(str(R.string.add_to_queue)) { player.addToQueue(listOf(song)) },
+        MenuAction(str(R.string.add_to_playlist)) { addToPlaylist(listOf(song)) },
+        MenuAction(str(if (isFavourite) R.string.remove_from_favourites else R.string.add_to_favourites)) {
+            toggleFavourite(song)
+        },
+        MenuAction(str(R.string.edit_track_info)) { editSong(song) },
+        MenuAction(str(R.string.details)) { showDetails(song) },
+    ) + extra + MenuAction(str(R.string.delete)) { deleteSongs(listOf(song)) }
+
+    fun groupMenu(
+        songs: () -> List<Song>,
+        extra: List<MenuAction> = emptyList(),
+        allowDelete: Boolean = true,
+        allowAddToPlaylist: Boolean = true,
+    ) = listOfNotNull(
+        MenuAction(str(R.string.play)) { player.playSongs(songs()) },
+        MenuAction(str(R.string.shuffle)) { player.playSongs(songs(), shuffle = true) },
+        MenuAction(str(R.string.play_next)) { player.playNext(songs()) },
+        MenuAction(str(R.string.add_to_queue)) { player.addToQueue(songs()) },
+        if (allowAddToPlaylist) MenuAction(str(R.string.add_to_playlist)) { addToPlaylist(songs()) } else null,
+    ) + extra + if (allowDelete) listOf(MenuAction(str(R.string.delete_tracks)) { deleteSongs(songs()) }) else emptyList()
 }
 
 val LocalUi = staticCompositionLocalOf<UiActions> { error("UiActions not provided") }
@@ -120,6 +153,7 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
     val loading by libraryVm.loading.collectAsStateWithLifecycle()
     val playlists by PlaylistStore.playlists.collectAsStateWithLifecycle()
     val stats by PlayStats.stats.collectAsStateWithLifecycle()
+    val favourites by Favourites.ids.collectAsStateWithLifecycle()
     val ps by playerVm.state.collectAsStateWithLifecycle()
 
     var stack by remember { mutableStateOf(listOf<Screen>(Screen.Library)) }
@@ -142,8 +176,10 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
         afterGrant = {
             playerVm.removeSongs(ids)
             PlaylistStore.removeSongsEverywhere(ids)
+            Favourites.removeAll(ids)
             libraryVm.reload(debounceMs = 300)
-            Toast.makeText(context, if (songs.size == 1) "Deleted" else "${songs.size} tracks deleted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.resources.getQuantityString(R.plurals.tracks_deleted, songs.size, songs.size),
+                Toast.LENGTH_SHORT).show()
         }
         grantLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
     }
@@ -190,12 +226,16 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
                 result.onSuccess {
                     playerVm.updateSongs(targets.map { if (it.id == song.id) mainUpdated else it },
                         resume = isCurrent && wasPlaying)
-                    val what = if (edits == null) "Cover changed" else "Track info saved"
-                    Toast.makeText(context, if (failed > 0) "$what ($failed files couldn't be changed)" else what,
+                    val what = context.getString(if (edits == null) R.string.cover_changed else R.string.track_info_saved)
+                    Toast.makeText(context,
+                        if (failed > 0) context.resources.getQuantityString(R.plurals.files_not_changed, failed, what, failed)
+                        else what,
                         Toast.LENGTH_SHORT).show()
                 }.onFailure { e ->
                     if (isCurrent && wasPlaying) playerVm.togglePlay()
-                    Toast.makeText(context, "Couldn't save: ${e.message ?: "unsupported file"}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context,
+                        context.getString(R.string.couldnt_save, e.message ?: context.getString(R.string.unsupported_file)),
+                        Toast.LENGTH_LONG).show()
                 }
                 libraryVm.reload(debounceMs = 1200)
             }
@@ -211,8 +251,46 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
         coverTargets = emptyList()
     }
 
+    // ---- Playlist export / import (.m3u8 through the Storage Access Framework) ----
+    var exportSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    val exportOne = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(M3u.MIME)) { uri ->
+        val songs = exportSongs
+        exportSongs = emptyList()
+        if (uri != null) scope.launch {
+            val msg = runCatching { M3u.writeTo(context, uri, songs) }.fold(
+                onSuccess = { context.resources.getQuantityString(R.plurals.export_done, 1, 1) },
+                onFailure = { context.getString(R.string.export_failed, it.message.orEmpty()) },
+            )
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+    fun allPlaylistsForExport(): List<Pair<String, List<Song>>> =
+        PlaylistStore.playlists.value.map { p -> p.name to p.songIds.mapNotNull { library.byId[it] } } +
+            Favourites.ids.value.mapNotNull { library.byId[it] }.takeIf { it.isNotEmpty() }
+                ?.let { listOf(context.getString(R.string.favourites) to it) }.orEmpty()
+    val exportAll = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree != null) scope.launch {
+            val n = runCatching { M3u.writeAllTo(context, tree, allPlaylistsForExport()) }.getOrDefault(0)
+            Toast.makeText(context, context.resources.getQuantityString(R.plurals.export_done, n, n), Toast.LENGTH_SHORT).show()
+        }
+    }
+    var importReport by remember { mutableStateOf<List<ImportResult>?>(null) }
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) scope.launch {
+            val fallback = context.getString(R.string.imported_playlist_default)
+            importReport = uris.map { uri ->
+                val parsed = runCatching { M3u.read(context, uri, fallback) }.getOrNull()
+                    ?: return@map ImportResult(uri.lastPathSegment?.substringAfterLast('/') ?: fallback, null, emptyList())
+                val resolved = M3u.resolve(parsed.entries, libraryVm.rawSongs)
+                if (resolved.songIds.isNotEmpty()) PlaylistStore.create(uniquePlaylistName(parsed.name), resolved.songIds)
+                ImportResult(parsed.name, parsed.entries.size to resolved.songIds.size, resolved.unmatched)
+            }
+        }
+    }
+
     val ui = remember(playerVm) {
         UiActions(
+            context = context,
             player = playerVm,
             navigate = { stack = stack + it },
             addToPlaylist = { addToPlaylist = it },
@@ -227,6 +305,16 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
                     coverPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
             },
+            exportPlaylist = { name, songs ->
+                exportSongs = songs
+                exportOne.launch(M3u.fileNameFor(name))
+            },
+            exportAllPlaylists = {
+                if (allPlaylistsForExport().isEmpty()) {
+                    Toast.makeText(context, R.string.nothing_to_export, Toast.LENGTH_SHORT).show()
+                } else exportAll.launch(null)
+            },
+            importPlaylists = { importer.launch(arrayOf("*/*")) },
         )
     }
 
@@ -240,9 +328,10 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
                     when (val screen = stack.last()) {
                         Screen.Library -> LibraryScreen(library, loading, playlists, ps.currentSongId)
                         Screen.Search -> SearchScreen(library, ps.currentSongId, onBack = { stack = stack.dropLast(1) })
+                        Screen.Settings -> SettingsScreen(libraryVm, onBack = { stack = stack.dropLast(1) })
                         is Screen.Songs -> {
-                            val songs = remember(screen, library, playlists, stats) {
-                                screen.source.resolve(library, playlists, stats)
+                            val songs = remember(screen, library, playlists, stats, favourites) {
+                                screen.source.resolve(library, playlists, stats, favourites)
                             }
                             SongsScreen(screen, songs, library, playlists, ps.currentSongId,
                                 onBack = { stack = stack.dropLast(1) })
@@ -264,13 +353,13 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
         addToPlaylist?.let { songs ->
             AddToPlaylistDialog(playlists, onDismiss = { addToPlaylist = null }) { playlistId ->
                 val n = PlaylistStore.add(playlistId, songs.map { it.id })
-                Toast.makeText(context,
-                    if (n == 1) "1 track added to playlist" else "$n tracks added to playlist",
+                Toast.makeText(context, context.resources.getQuantityString(R.plurals.tracks_added_to_playlist, n, n),
                     Toast.LENGTH_SHORT).show()
                 addToPlaylist = null
             }
         }
         details?.let { DetailsDialog(it) { details = null } }
+        importReport?.let { ImportReportDialog(it) { importReport = null } }
         editing?.let { song ->
             val albumCount = library.albums.firstOrNull { it.id == song.albumId }?.songs?.size ?: 1
             EditTrackDialog(song, albumCount, onDismiss = { editing = null }) { edits, cover, wholeAlbum ->
@@ -285,6 +374,13 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
             null -> Unit
         }
     }
+}
+
+/** "Name", or "Name 2", "Name 3"... if a playlist with that name already exists. */
+private fun uniquePlaylistName(name: String): String {
+    val taken = PlaylistStore.playlists.value.map { it.name.lowercase() }.toSet()
+    if (name.lowercase() !in taken) return name
+    return generateSequence(2) { it + 1 }.map { "$name $it" }.first { it.lowercase() !in taken }
 }
 
 // ---------- Background playback helper ----------
