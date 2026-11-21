@@ -121,4 +121,6 @@ The source code is released under the [MIT License](LICENSE). The license covers
 
 ## Download
 
-Get the latest APK from the [Releases](../../releases) page. It installs on Android 11 or newer; you'll need to allow installing from unknown sources.
+**[Download MusicPlayer-v4.2.apk](https://github.com/id0ntknowbr0/music-player-touchwiz/releases/download/v4.2/MusicPlayer-v4.2.apk)**, or see the [latest release](https://github.com/id0ntknowbr0/music-player-touchwiz/releases/latest) for what's new.
+
+It installs on Android 11 or newer; you'll need to allow installing from unknown sources. Updates install directly over v4.1 and later.
