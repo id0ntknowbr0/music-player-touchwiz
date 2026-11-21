@@ -162,6 +162,7 @@ private fun AnalysisRow(progress: Pair<Int, Int>?, notAnalysed: Int) {
 private fun MoodSquare(grid: MoodGrid, selected: Set<Int>, onSelectionChange: (Set<Int>) -> Unit) {
     val currentSelected by rememberUpdatedState(selected)
     val currentOnChange by rememberUpdatedState(onSelectionChange)
+    val haptics = rememberHaptics()
     val axis = S4Colors.Text2
     Column(Modifier.widthIn(max = 420.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(stringResource(R.string.square_passionate), color = axis, fontSize = 12.sp)
@@ -189,6 +190,7 @@ private fun MoodSquare(grid: MoodGrid, selected: Set<Int>, onSelectionChange: (S
                             var sel = currentSelected.toMutableSet().apply { if (adding) add(first) else remove(first) }
                             val touched = mutableSetOf(first)
                             currentOnChange(sel.toSet())
+                            haptics.tick()
                             down.consume()
                             while (true) {
                                 val change = awaitPointerEvent().changes.firstOrNull() ?: break
@@ -197,6 +199,7 @@ private fun MoodSquare(grid: MoodGrid, selected: Set<Int>, onSelectionChange: (S
                                 if (touched.add(c)) {
                                     sel = sel.apply { if (adding) add(c) else remove(c) }
                                     currentOnChange(sel.toSet())
+                                    haptics.tick()
                                 }
                                 change.consume()
                             }

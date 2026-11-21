@@ -132,6 +132,13 @@ fun SettingsScreen(libraryVm: LibraryViewModel, onBack: () -> Unit) {
                 checked = s.lyricsOnline,
             ) { AppSettings.update { it.copy(lyricsOnline = !it.lyricsOnline) } }
 
+            SettingsSection(R.string.settings_section_general)
+            SettingsRow(
+                stringResource(R.string.settings_haptics),
+                stringResource(R.string.settings_haptics_summary),
+                checked = s.haptics,
+            ) { AppSettings.update { it.copy(haptics = !it.haptics) } }
+
             SettingsSection(R.string.settings_section_about)
             SettingsRow(stringResource(R.string.app_name), stringResource(R.string.settings_version, version), onClick = null)
         }

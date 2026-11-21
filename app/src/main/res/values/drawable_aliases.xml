@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drawables that were byte-identical copies; each name now points at one image. -->
+<resources>
+    <item name="tw_nowplaying" type="drawable">@drawable/tw_list</item>
+    <item name="tw_nowplaying_press" type="drawable">@drawable/tw_list_press</item>
+    <item name="tw_play_press" type="drawable">@drawable/tw_play</item>
+    <item name="tw_w_next" type="drawable">@drawable/tw_next</item>
+    <item name="tw_w_next_press" type="drawable">@drawable/tw_next_press</item>
+    <item name="tw_w_pause" type="drawable">@drawable/tw_pause</item>
+    <item name="tw_w_play" type="drawable">@drawable/tw_play</item>
+    <item name="tw_w_prev" type="drawable">@drawable/tw_prev</item>
+</resources>

@@ -16,6 +16,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.platform.LocalView
+import android.os.SystemClock
+import android.view.HapticFeedbackConstants
+import android.view.View
+import dev.s4music.player.data.AppSettings
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +76,30 @@ import dev.s4music.player.data.Song
 import dev.s4music.player.ui.theme.S4Colors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+// ---------- Haptics ----------
+
+/** TouchWiz-style touch vibration. Off when the app setting or Android's own touch feedback is off. */
+class Haptics(private val view: View) {
+    private fun perform(type: Int) {
+        if (AppSettings.current.haptics) view.performHapticFeedback(type)
+    }
+
+    /** Buttons. */
+    fun tap() = perform(HapticFeedbackConstants.VIRTUAL_KEY)
+
+    /** Long-press menus. */
+    fun longPress() = perform(HapticFeedbackConstants.LONG_PRESS)
+
+    /** Small steps: seeking, index letters, Music Square cells. */
+    fun tick() = perform(HapticFeedbackConstants.CLOCK_TICK)
+}
+
+@Composable
+fun rememberHaptics(): Haptics {
+    val view = LocalView.current
+    return remember(view) { Haptics(view) }
+}
 
 // ---------- Album art ----------
 
@@ -250,9 +283,11 @@ fun ContextMenuDialog(title: String, actions: List<MenuAction>, onDismiss: () ->
 @Composable
 fun SongRow(song: Song, isCurrent: Boolean, menu: List<MenuAction>, onClick: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
     Row(
         Modifier.fillMaxWidth().height(76.dp)
-            .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+            .combinedClickable(onClick = onClick,
+                onLongClick = { haptics.longPress(); menuOpen = true })
             .padding(start = 4.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -281,9 +316,11 @@ fun GroupRow(
     icon: ImageVector? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
     Row(
         Modifier.fillMaxWidth().height(76.dp)
-            .combinedClickable(onClick = onClick, onLongClick = { if (menu.isNotEmpty()) menuOpen = true })
+            .combinedClickable(onClick = onClick,
+                onLongClick = { if (menu.isNotEmpty()) { haptics.longPress(); menuOpen = true } })
             .padding(start = 4.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -333,17 +370,48 @@ fun firstIndexFor(letter: Char, keys: List<Char>): Int? {
 /**
  * Wraps a list with the TouchWiz index strip on the right. Tapping or dragging over a
  * letter jumps to the first item starting with it and shows the letter in a bubble.
+ * When [firstVisible] is given, the bubble also shows the current letter while the list is
+ * flung quickly, like TouchWiz's fast scroll.
  */
 @Composable
-fun AlphabetIndexed(keys: List<Char>, scrollTo: suspend (Int) -> Unit, content: @Composable () -> Unit) {
+fun AlphabetIndexed(
+    keys: List<Char>,
+    scrollTo: suspend (Int) -> Unit,
+    firstVisible: (() -> Int)? = null,
+    content: @Composable () -> Unit,
+) {
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
     var active by remember { mutableStateOf<Char?>(null) }
+    var flingLetter by remember { mutableStateOf<Char?>(null) }
     val currentKeys by rememberUpdatedState(keys)
     val currentScroll by rememberUpdatedState(scrollTo)
+
+    if (firstVisible != null && keys.size >= FAST_SCROLL_MIN_ITEMS) {
+        val visible by rememberUpdatedState(firstVisible)
+        LaunchedEffect(Unit) {
+            var lastIndex = -1
+            var lastTime = 0L
+            snapshotFlow { visible() }.collectLatest { index ->
+                val now = SystemClock.uptimeMillis()
+                val itemsPerSec = if (lastIndex < 0) 0f
+                else abs(index - lastIndex) * 1000f / (now - lastTime).coerceAtLeast(1)
+                lastIndex = index; lastTime = now
+                // Appears on a fast fling, then follows the list until it has been still for a moment.
+                if (itemsPerSec > FAST_SCROLL_ITEMS_PER_SEC || flingLetter != null) {
+                    flingLetter = currentKeys.getOrNull(index.coerceIn(0, currentKeys.lastIndex))
+                }
+                delay(700)
+                flingLetter = null
+            }
+        }
+    }
+
+    val shown = active ?: flingLetter
     Row(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxHeight()) {
             content()
-            active?.let { letter ->
+            shown?.let { letter ->
                 Box(Modifier.align(Alignment.Center).size(84.dp).clip(RoundedCornerShape(6.dp))
                     .background(androidx.compose.ui.graphics.Color(0xDD1E2A35)), contentAlignment = Alignment.Center) {
                     Text(letter.toString(), color = androidx.compose.ui.graphics.Color.White, fontSize = 44.sp)
@@ -361,6 +429,7 @@ fun AlphabetIndexed(keys: List<Char>, scrollTo: suspend (Int) -> Unit, content: 
                             if (letter != last) {
                                 last = letter
                                 active = letter
+                                haptics.tick()
                                 firstIndexFor(letter, currentKeys)?.let { scope.launch { currentScroll(it) } }
                             }
                         }
@@ -377,13 +446,18 @@ fun AlphabetIndexed(keys: List<Char>, scrollTo: suspend (Int) -> Unit, content: 
         ) {
             INDEX_LETTERS.forEach { c ->
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(c.toString(), color = if (c == active) NowPlayingBlue else androidx.compose.ui.graphics.Color(0xFF8A8F96),
+                    Text(c.toString(), color = if (c == shown) NowPlayingBlue else androidx.compose.ui.graphics.Color(0xFF8A8F96),
                         fontSize = 11.sp, maxLines = 1)
                 }
             }
         }
     }
 }
+
+/** The fast-scroll bubble only appears on lists at least this long… */
+private const val FAST_SCROLL_MIN_ITEMS = 40
+/** …when they move faster than this. */
+private const val FAST_SCROLL_ITEMS_PER_SEC = 25f
 
 // ---------- Formatting ----------
 

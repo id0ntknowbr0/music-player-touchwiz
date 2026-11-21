@@ -1,6 +1,8 @@
 package dev.s4music.player
 
 import android.Manifest
+import android.app.SearchManager
+import android.provider.MediaStore
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -33,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +58,8 @@ import dev.s4music.player.ui.theme.S4Theme
 class MainActivity : ComponentActivity() {
     private val openPlayer = mutableStateOf(false)
     private val externalUri = mutableStateOf<Uri?>(null)
+    /** Voice search query ("" = "play some music"); null when there's none to handle. */
+    private val playQuery = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -68,6 +73,15 @@ class MainActivity : ComponentActivity() {
             S4Theme {
                 val libraryVm: LibraryViewModel = viewModel()
                 val playerVm: PlayerViewModel = viewModel()
+
+                val library by libraryVm.library.collectAsStateWithLifecycle()
+                val loading by libraryVm.loading.collectAsStateWithLifecycle()
+                LaunchedEffect(playQuery.value, loading) {
+                    val query = playQuery.value ?: return@LaunchedEffect
+                    if (loading) return@LaunchedEffect   // wait for the library
+                    playerVm.playFromSearch(query, library)
+                    playQuery.value = null
+                }
 
                 LaunchedEffect(externalUri.value) {
                     externalUri.value?.let {
@@ -100,6 +114,9 @@ class MainActivity : ComponentActivity() {
         intent ?: return
         if (intent.getBooleanExtra(EXTRA_OPEN_PLAYER, false)) openPlayer.value = true
         if (intent.action == Intent.ACTION_VIEW) intent.data?.let { externalUri.value = it }
+        if (intent.action == MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH) {
+            playQuery.value = intent.getStringExtra(SearchManager.QUERY).orEmpty()
+        }
     }
 
     companion object {

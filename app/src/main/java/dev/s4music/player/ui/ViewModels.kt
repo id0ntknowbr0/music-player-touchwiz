@@ -215,6 +215,28 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         c.play()
     }
 
+    /**
+     * Voice search: plays the songs matching every word of [query] (title, artist or album).
+     * An empty query ("play music") resumes the queue, or shuffles everything if there is none.
+     */
+    fun playFromSearch(query: String, library: Library) {
+        val words = query.trim().lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.isEmpty()) {
+            val c = controller
+            if (c != null && c.mediaItemCount > 0) togglePlayIfPaused() else playSongs(library.songs, shuffle = true)
+            return
+        }
+        val found = library.songs.filter { s ->
+            val text = "${s.title} ${s.artist} ${s.album}".lowercase()
+            words.all { it in text }
+        }
+        if (found.isNotEmpty()) playSongs(found)
+    }
+
+    private fun togglePlayIfPaused() {
+        if (controller?.isPlaying == false) togglePlay()
+    }
+
     fun togglePlay() {
         val c = controller ?: return
         if (c.isPlaying) c.pause() else {

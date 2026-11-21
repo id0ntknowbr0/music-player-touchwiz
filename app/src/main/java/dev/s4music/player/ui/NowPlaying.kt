@@ -355,10 +355,11 @@ fun TwButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val isPressed by interaction.collectIsPressedAsState()
+    val haptics = rememberHaptics()
     Image(
         painterResource(if (isPressed && pressed != null) pressed else normal),
         contentDescription = description,
-        modifier = modifier.clickable(interaction, indication = null, onClick = onClick),
+        modifier = modifier.clickable(interaction, indication = null) { haptics.tap(); onClick() },
         contentScale = ContentScale.Fit,
         alpha = if (isPressed && pressed == null) 0.6f else 1f,
     )
@@ -378,6 +379,7 @@ private fun HoldButton(
     val tap by rememberUpdatedState(onTap)
     val hold by rememberUpdatedState(onHold)
     var down by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
     Image(
         painterResource(if (down) pressed else normal),
         contentDescription = description,
@@ -390,12 +392,12 @@ private fun HoldButton(
                 val job = scope.launch {
                     delay(450)
                     held = true
-                    while (isActive) { hold(); delay(150) }
+                    while (isActive) { haptics.tick(); hold(); delay(150) }
                 }
                 val up = waitForUpOrCancellation()
                 job.cancel()
                 down = false
-                if (!held && up != null) tap()
+                if (!held && up != null) { haptics.tap(); tap() }
             }
         },
     )
@@ -409,6 +411,7 @@ private fun TwSeekBar(ps: PlayerUiState) {
     val dur = ps.durationMs.coerceAtLeast(1)
     val fraction = dragFraction ?: (ps.positionMs.toFloat() / dur).coerceIn(0f, 1f)
     val ab by PlaybackBridge.abRepeat.collectAsState()
+    val haptics = rememberHaptics()
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
         BoxWithConstraints(
@@ -418,11 +421,17 @@ private fun TwSeekBar(ps: PlayerUiState) {
                     val first = awaitFirstDown()
                     fun frac(x: Float) = (x / size.width).coerceIn(0f, 1f)
                     dragFraction = frac(first.position.x)
+                    haptics.tick()
+                    // A tick for every 5% of the song while scrubbing.
+                    var lastStep = (dragFraction!! * 20).toInt()
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull() ?: break
                         if (!change.pressed) break
-                        dragFraction = frac(change.position.x)
+                        val f = frac(change.position.x)
+                        dragFraction = f
+                        val step = (f * 20).toInt()
+                        if (step != lastStep) { lastStep = step; haptics.tick() }
                         change.consume()
                     }
                     dragFraction?.let { vm.seekTo((it * dur).toLong()) }

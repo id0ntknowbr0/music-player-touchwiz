@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Music Player</string>
     <string name="widget_description">Music Player controls</string>
+    <string name="widget_large_description">Music Player with album art</string>
+    <string name="widget_small_description">Music Player play / pause</string>
 
     <!-- Common -->
     <string name="ok">OK</string>
@@ -344,6 +346,9 @@
     <string name="settings_section_lyrics">Lyrics</string>
     <string name="settings_lyrics_online">Search lyrics online</string>
     <string name="settings_lyrics_online_summary">Lets the lyrics screen look up lyrics on lrclib.net. Only the track’s title, artist, album and length are sent, and only when you tap “Search online”.</string>
+    <string name="settings_section_general">General</string>
+    <string name="settings_haptics">Touch vibration</string>
+    <string name="settings_haptics_summary">Vibrates on button presses, long-presses, seeking and the A–Z index.</string>
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version %1$s</string>
 

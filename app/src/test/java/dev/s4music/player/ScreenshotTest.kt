@@ -151,18 +151,27 @@ class ScreenshotTest {
         }
     }
 
-    @Test
-    fun widget() {
-        val views = WidgetUpdater.build(app, WidgetState("Over the Horizon", "Samsung", null, playing = true), null)
+    private fun renderWidget(layout: Int, w: Int, h: Int, file: String) {
+        val state = WidgetState("Over the Horizon", "Samsung", null, playing = true, album = "Galaxy S4 Sounds")
+        val views = WidgetUpdater.build(app, state, null, layout)
         val parent = FrameLayout(app)
         val v = views.apply(app, parent)
-        parent.addView(v, FrameLayout.LayoutParams(720, 200))
+        parent.addView(v, FrameLayout.LayoutParams(w, h))
         parent.measure(
-            android.view.View.MeasureSpec.makeMeasureSpec(720, android.view.View.MeasureSpec.EXACTLY),
-            android.view.View.MeasureSpec.makeMeasureSpec(200, android.view.View.MeasureSpec.EXACTLY))
-        parent.layout(0, 0, 720, 200)
-        val bmp = android.graphics.Bitmap.createBitmap(720, 200, android.graphics.Bitmap.Config.ARGB_8888)
+            android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY))
+        parent.layout(0, 0, w, h)
+        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
         parent.draw(android.graphics.Canvas(bmp))
-        bmp.captureRoboImage("build/screens/widget.png")
+        bmp.captureRoboImage(file)
     }
+
+    @Test
+    fun widget() = renderWidget(R.layout.widget_player, 720, 200, "build/screens/widget.png")
+
+    @Test
+    fun widgetLarge() = renderWidget(R.layout.widget_player_large, 720, 400, "build/screens/widget_large.png")
+
+    @Test
+    fun widgetSmall() = renderWidget(R.layout.widget_play_pause, 180, 180, "build/screens/widget_small.png")
 }

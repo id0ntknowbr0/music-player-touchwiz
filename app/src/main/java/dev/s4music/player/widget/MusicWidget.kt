@@ -37,6 +37,7 @@ data class WidgetState(
     val playing: Boolean = false,
     val shuffle: Boolean = false,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val album: String = "",
 )
 
 object WidgetUpdater {
@@ -49,6 +50,7 @@ object WidgetUpdater {
             .putString("title", s.title).putString("artist", s.artist)
             .putLong("album", s.albumId ?: -1L).putLong("song", s.songId ?: -1L).putBoolean("playing", s.playing)
             .putBoolean("shuffle", s.shuffle).putInt("repeat", s.repeatMode)
+            .putString("album_title", s.album)
             .apply()
     }
 
@@ -62,30 +64,44 @@ object WidgetUpdater {
             playing = false, // after a restart nothing is playing
             shuffle = p.getBoolean("shuffle", false),
             repeatMode = p.getInt("repeat", Player.REPEAT_MODE_OFF),
+            album = p.getString("album_title", "").orEmpty(),
         )
     }
+
+    /** The widget sizes and their layouts. */
+    private val WIDGETS = listOf(
+        MusicWidgetProvider::class.java to R.layout.widget_player,              // 4x1
+        MusicWidgetLargeProvider::class.java to R.layout.widget_player_large,   // 4x2
+        MusicWidgetSmallProvider::class.java to R.layout.widget_play_pause,     // 1x1
+    )
 
     /** Redraws every placed widget. Safe to call often; album art is cached. */
     suspend fun update(context: Context, s: WidgetState) {
         val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(ComponentName(context, MusicWidgetProvider::class.java))
         save(context, s)
-        if (ids.isEmpty()) return
-        val art = albumArt(context, s.songId, s.albumId)
-        val views = build(context, s, art)
-        manager.updateAppWidget(ids, views)
+        var art: Bitmap? = null
+        var artLoaded = false
+        for ((provider, layout) in WIDGETS) {
+            val ids = manager.getAppWidgetIds(ComponentName(context, provider))
+            if (ids.isEmpty()) continue
+            if (layout != R.layout.widget_play_pause && !artLoaded) {
+                art = albumArt(context, s.songId, s.albumId)
+                artLoaded = true
+            }
+            manager.updateAppWidget(ids, build(context, s, art, layout))
+        }
     }
 
     private suspend fun albumArt(context: Context, songId: Long?, albumId: Long?): Bitmap? {
         val key = "$songId/$albumId#${CoverStore.version.value}"
         if (key == lastArtKey && lastArt != null) return lastArt
         val bmp = withContext(Dispatchers.IO) {
-            CoverStore.find(context, songId, albumId)?.let { CoverStore.decode(it, 240) }
+            CoverStore.find(context, songId, albumId)?.let { CoverStore.decode(it, ART_PX) }
                 ?: albumId?.let {
                     runCatching {
                         context.contentResolver.loadThumbnail(
                             ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, it),
-                            Size(240, 240), null)
+                            Size(ART_PX, ART_PX), null)
                     }.getOrNull()
                 }
         }
@@ -94,8 +110,19 @@ object WidgetUpdater {
         return bmp
     }
 
-    fun build(context: Context, s: WidgetState, art: Bitmap?): RemoteViews =
-        RemoteViews(context.packageName, R.layout.widget_player).apply {
+    /** Album art size: enough for the 4x2 widget's large cover. */
+    private const val ART_PX = 400
+
+    fun build(context: Context, s: WidgetState, art: Bitmap?, layout: Int = R.layout.widget_player): RemoteViews {
+        if (layout == R.layout.widget_play_pause) {
+            return RemoteViews(context.packageName, layout).apply {
+                setImageViewResource(R.id.widget_play, if (s.playing) R.drawable.w_btn_pause else R.drawable.w_btn_play)
+                setContentDescription(R.id.widget_play, context.getString(if (s.playing) R.string.pause else R.string.play))
+                setOnClickPendingIntent(R.id.widget_play, action(context, WidgetActionReceiver.PLAY_PAUSE, 1))
+            }
+        }
+        return RemoteViews(context.packageName, layout).apply {
+            if (layout == R.layout.widget_player_large) setTextViewText(R.id.widget_album, s.album)
             setTextViewText(R.id.widget_title, s.title.ifEmpty { context.getString(R.string.app_name) })
             setTextViewText(R.id.widget_artist, s.artist.ifEmpty { context.getString(R.string.widget_tap_to_resume) })
             if (art != null) setImageViewBitmap(R.id.widget_art, art)
@@ -122,6 +149,7 @@ object WidgetUpdater {
             setOnClickPendingIntent(R.id.widget_shuffle, action(context, WidgetActionReceiver.SHUFFLE, 4))
             setOnClickPendingIntent(R.id.widget_repeat, action(context, WidgetActionReceiver.REPEAT, 5))
         }
+    }
 
     private fun action(context: Context, action: String, code: Int) = PendingIntent.getBroadcast(
         context, code,
@@ -130,7 +158,8 @@ object WidgetUpdater {
     )
 }
 
-class MusicWidgetProvider : AppWidgetProvider() {
+/** 4x1 widget. The 4x2 and 1x1 widgets share its update logic. */
+open class MusicWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.Main).launch {
@@ -142,6 +171,12 @@ class MusicWidgetProvider : AppWidgetProvider() {
         }
     }
 }
+
+/** 4x2 widget with large album art. */
+class MusicWidgetLargeProvider : MusicWidgetProvider()
+
+/** 1x1 play / pause widget. */
+class MusicWidgetSmallProvider : MusicWidgetProvider()
 
 /**
  * Handles widget button taps by connecting a MediaController to [PlaybackService].

@@ -12,7 +12,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.LibraryParams
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.SessionError
+import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import dev.s4music.player.MainActivity
@@ -40,9 +45,10 @@ import kotlinx.coroutines.launch
  * lock-screen / Bluetooth / headset controls, audio focus and "becoming noisy" handling.
  */
 @OptIn(UnstableApi::class)
-class PlaybackService : MediaSessionService() {
+class PlaybackService : MediaLibraryService() {
 
-    private var session: MediaSession? = null
+    private var session: MediaLibrarySession? = null
+    private val browseTree by lazy { BrowseTree(this) }
     private lateinit var player: ExoPlayer
     private val soundAlive = SoundAliveEngine()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -112,8 +118,7 @@ class PlaybackService : MediaSessionService() {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        session = MediaSession.Builder(this, player)
-            .setCallback(SessionCallback())
+        session = MediaLibrarySession.Builder(this, player, SessionCallback())
             .setSessionActivity(openPlayer)
             .build()
 
@@ -231,7 +236,7 @@ class PlaybackService : MediaSessionService() {
         const val SLEEP_FADE_MS = 10_000L
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val p = session?.player
@@ -257,13 +262,36 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
-    private inner class SessionCallback : MediaSession.Callback {
+    /** Playback commands plus the browse tree for Android Auto and other media browsers. */
+    private inner class SessionCallback : MediaLibrarySession.Callback {
         override fun onAddMediaItems(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             mediaItems: MutableList<MediaItem>,
-        ): ListenableFuture<MutableList<MediaItem>> =
-            Futures.immediateFuture(mediaItems.map(::resolveMediaItem).toMutableList())
+        ): ListenableFuture<MutableList<MediaItem>> = scope.future {
+            // "Play <query>" from a voice assistant arrives as an item with only a search query.
+            browseTree.expand(mediaItems)?.takeIf { mediaItems.single().requestMetadata.searchQuery != null }
+                ?.first?.toMutableList()
+                ?: mediaItems.map { browseTree.resolve(it) }.toMutableList()
+        }
+
+        /** A song picked from a list in Android Auto plays the whole list from that song. */
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = scope.future {
+            val expanded = if (mediaItems.size == 1 && mediaItems[0].localConfiguration == null) {
+                browseTree.expand(mediaItems)
+            } else null
+            if (expanded != null) {
+                MediaSession.MediaItemsWithStartPosition(expanded.first, expanded.second, C.TIME_UNSET)
+            } else {
+                MediaSession.MediaItemsWithStartPosition(mediaItems.map { browseTree.resolve(it) }, startIndex, startPositionMs)
+            }
+        }
 
         /** Lets the Bluetooth play button / system media resumption restart the last queue. */
         override fun onPlaybackResumption(
@@ -274,7 +302,59 @@ class PlaybackService : MediaSessionService() {
                 ?: throw UnsupportedOperationException("Nothing to resume")
             saved
         }
+
+        override fun onGetLibraryRoot(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(LibraryResult.ofItem(browseTree.root(), params))
+
+        override fun onGetChildren(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            parentId: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = scope.future {
+            val children = browseTree.children(parentId)
+                ?: return@future LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            LibraryResult.ofItemList(children.page(page, pageSize), params)
+        }
+
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String,
+        ): ListenableFuture<LibraryResult<MediaItem>> = scope.future {
+            browseTree.item(mediaId)?.let { LibraryResult.ofItem(it, null) }
+                ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+        }
+
+        override fun onSearch(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<Void>> {
+            scope.launch { session.notifySearchResultChanged(browser, query, browseTree.search(query).size, params) }
+            return Futures.immediateFuture(LibraryResult.ofVoid())
+        }
+
+        override fun onGetSearchResult(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = scope.future {
+            LibraryResult.ofItemList(browseTree.searchItems(query).page(page, pageSize), params)
+        }
     }
+
+    private fun <T> List<T>.page(page: Int, pageSize: Int): List<T> =
+        if (pageSize <= 0 || pageSize == Int.MAX_VALUE) this else drop(page * pageSize).take(pageSize)
 
     // ---- Volume: Smart volume x crossfade x sleep fade ----
 
@@ -329,6 +409,7 @@ class PlaybackService : MediaSessionService() {
             playing = player.isPlaying || (player.playWhenReady && player.playbackState == Player.STATE_BUFFERING),
             shuffle = player.shuffleModeEnabled,
             repeatMode = player.repeatMode,
+            album = (item?.mediaMetadata?.albumTitle ?: md.albumTitle)?.toString().orEmpty(),
         )
     }
 

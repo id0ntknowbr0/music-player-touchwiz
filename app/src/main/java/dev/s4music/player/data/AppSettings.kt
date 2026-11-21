@@ -36,6 +36,8 @@ data class Settings(
     val autoResume: Boolean = false,
     /** Remember a separate SoundAlive setting for each output (speaker, wired, each Bluetooth device). */
     val soundPerOutput: Boolean = false,
+    /** Vibrate on button presses, long-presses and while seeking (also needs Android's touch feedback on). */
+    val haptics: Boolean = true,
 ) {
     val visibleTabs: List<LibraryTabId> get() = LibraryTabId.entries.filterNot { it in hiddenTabs }
 
@@ -58,6 +60,7 @@ object AppSettings {
     private const val K_SKIP_SILENCE = "skip_silence"
     private const val K_AUTO_RESUME = "auto_resume"
     private const val K_SOUND_PER_OUTPUT = "sound_per_output"
+    private const val K_HAPTICS = "haptics"
 
     private lateinit var prefs: SharedPreferences
     private val _settings = MutableStateFlow(Settings())
@@ -80,6 +83,7 @@ object AppSettings {
             skipSilence = prefs.getBoolean(K_SKIP_SILENCE, false),
             autoResume = prefs.getBoolean(K_AUTO_RESUME, false),
             soundPerOutput = prefs.getBoolean(K_SOUND_PER_OUTPUT, false),
+            haptics = prefs.getBoolean(K_HAPTICS, true),
         )
     }
 
@@ -96,6 +100,7 @@ object AppSettings {
             .putBoolean(K_SKIP_SILENCE, s.skipSilence)
             .putBoolean(K_AUTO_RESUME, s.autoResume)
             .putBoolean(K_SOUND_PER_OUTPUT, s.soundPerOutput)
+            .putBoolean(K_HAPTICS, s.haptics)
             .apply()
     }
 }

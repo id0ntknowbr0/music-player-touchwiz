@@ -40,6 +40,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.APP_MUSIC" />
             </intent-filter>
+            <!-- "Play <song> on Music Player" from Google Assistant / Android Auto voice search -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <!-- "Open with" for audio files from file managers, like the S4's AudioPreview -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -55,10 +60,16 @@
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="androidx.media3.session.MediaSessionService" />
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!-- Android Auto: this app is a media app -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
 
         <!-- Home screen widget -->
         <receiver
@@ -71,6 +82,28 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_player_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.MusicWidgetLargeProvider"
+            android:exported="true"
+            android:label="@string/widget_large_description">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_player_large_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.MusicWidgetSmallProvider"
+            android:exported="true"
+            android:label="@string/widget_small_description">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_play_pause_info" />
         </receiver>
         <receiver
             android:name=".widget.WidgetActionReceiver"

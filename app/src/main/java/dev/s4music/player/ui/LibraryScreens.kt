@@ -266,7 +266,8 @@ fun SongList(
         }
         if (indexKeyOf != null && songs.isNotEmpty()) {
             val keys = remember(songs, indexKeyOf) { songs.map { indexKey(indexKeyOf(it)) } }
-            AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it + offset) }, content = list)
+            AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it + offset) },
+                firstVisible = { listState.firstVisibleItemIndex - offset }, content = list)
         } else list()
     }
 }
@@ -339,6 +340,7 @@ private fun PlaylistsTab(playlists: List<Playlist>, library: Library, actions: @
 private fun AlbumsTab(library: Library, actions: @Composable RowScope.() -> Unit) {
     val ui = LocalUi.current
     val gridState = rememberLazyGridState()
+    val haptics = rememberHaptics()
     val keys = remember(library) { library.albums.map { indexKey(it.title) } }
     Column(Modifier.fillMaxSize()) {
         ShuffleHeader(if (library.songs.isEmpty()) null else ({ ui.player.playSongs(library.songs, shuffle = true) }), actions)
@@ -346,7 +348,7 @@ private fun AlbumsTab(library: Library, actions: @Composable RowScope.() -> Unit
             EmptyMessage(stringResource(R.string.no_albums))
             return@Column
         }
-        AlphabetIndexed(keys, scrollTo = { gridState.scrollToItem(it) }) {
+        AlphabetIndexed(keys, scrollTo = { gridState.scrollToItem(it) }, firstVisible = { gridState.firstVisibleItemIndex }) {
             LazyVerticalGrid(GridCells.Adaptive(108.dp), Modifier.fillMaxSize(), state = gridState,
                 contentPadding = PaddingValues(4.dp)) {
                 items(library.albums, key = { it.id }) { album ->
@@ -354,7 +356,7 @@ private fun AlbumsTab(library: Library, actions: @Composable RowScope.() -> Unit
                     Column(
                         Modifier.padding(3.dp).combinedClickable(
                             onClick = { ui.navigate(Screen.Songs(album.title, SongSource.Album(album.id))) },
-                            onLongClick = { menuOpen = true },
+                            onLongClick = { haptics.longPress(); menuOpen = true },
                         )
                     ) {
                         AlbumArt(album.id, Modifier.fillMaxWidth().aspectRatio(1f), sizePx = 320, shape = RectangleShape)
@@ -386,7 +388,7 @@ private fun ArtistsTab(library: Library, actions: @Composable RowScope.() -> Uni
             EmptyMessage(stringResource(R.string.no_artists))
             return@Column
         }
-        AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it) }) {
+        AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it) }, firstVisible = { listState.firstVisibleItemIndex }) {
             LazyColumn(Modifier.fillMaxSize(), state = listState) {
                 items(library.artists, key = { it.id }) { artist ->
                     GroupRow(
@@ -437,7 +439,8 @@ private fun GroupsTab(
                 item { CountFooter(pluralStringResource(countPlural, groups.size, groups.size)) }
             }
         }
-        AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it) }, content = content)
+        AlphabetIndexed(keys, scrollTo = { listState.scrollToItem(it) },
+            firstVisible = { listState.firstVisibleItemIndex }, content = content)
     }
 }
 
