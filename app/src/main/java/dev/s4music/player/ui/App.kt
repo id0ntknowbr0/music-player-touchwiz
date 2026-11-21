@@ -370,7 +370,7 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
         when (dialog) {
             GlobalDialog.SoundAlive -> SoundAliveDialog { dialog = null }
             GlobalDialog.PlaySpeed -> PlaySpeedDialog(ps.speed, playerVm::setSpeed) { dialog = null }
-            GlobalDialog.SleepTimer -> SleepTimerDialog(playerVm::setSleepTimer) { dialog = null }
+            GlobalDialog.SleepTimer -> SleepTimerDialog(playerVm::setSleepTimer, playerVm::setSleepAfterCurrent) { dialog = null }
             null -> Unit
         }
     }

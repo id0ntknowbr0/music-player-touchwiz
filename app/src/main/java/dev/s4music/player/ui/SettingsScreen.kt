@@ -21,10 +21,13 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,6 +47,7 @@ import dev.s4music.player.data.AppSettings
 import dev.s4music.player.data.LibraryTabId
 import dev.s4music.player.data.SongSort
 import dev.s4music.player.ui.theme.S4Colors
+import kotlin.math.roundToInt
 
 @StringRes
 fun LibraryTabId.labelRes(): Int = when (this) {
@@ -65,7 +69,7 @@ private fun SongSort.labelRes(): Int = when (this) {
 
 private val MIN_DURATION_CHOICES = listOf(0, 10, 30, 45, 60, 90, 120)
 
-private enum class SettingsDialog { Tabs, Folders, MinDuration, Sort }
+private enum class SettingsDialog { Tabs, Folders, MinDuration, Sort, Crossfade }
 
 /** TouchWiz-style settings list: blue section headers, two-line rows, checkboxes on the right. */
 @Composable
@@ -98,6 +102,16 @@ fun SettingsScreen(libraryVm: LibraryViewModel, onBack: () -> Unit) {
             SettingsRow(stringResource(R.string.settings_sort), stringResource(s.songSort.labelRes())) {
                 dialog = SettingsDialog.Sort
             }
+
+            SettingsSection(R.string.settings_section_playback)
+            SettingsRow(stringResource(R.string.settings_crossfade), crossfadeLabel(s.crossfadeSec)) {
+                dialog = SettingsDialog.Crossfade
+            }
+            SettingsRow(
+                stringResource(R.string.settings_skip_silence),
+                stringResource(R.string.settings_skip_silence_summary),
+                checked = s.skipSilence,
+            ) { AppSettings.update { it.copy(skipSilence = !it.skipSilence) } }
 
             SettingsSection(R.string.settings_section_lyrics)
             SettingsRow(
@@ -162,8 +176,47 @@ fun SettingsScreen(libraryVm: LibraryViewModel, onBack: () -> Unit) {
             onPick = { v -> AppSettings.update { it.copy(songSort = v) }; dialog = null },
             onDismiss = { dialog = null },
         )
+        SettingsDialog.Crossfade -> CrossfadeDialog(s.crossfadeSec, onDismiss = { dialog = null })
         null -> Unit
     }
+}
+
+@Composable
+private fun crossfadeLabel(sec: Int) =
+    if (sec == 0) stringResource(R.string.settings_crossfade_off)
+    else pluralStringResource(R.plurals.settings_crossfade_value, sec, sec)
+
+@Composable
+private fun CrossfadeDialog(initial: Int, onDismiss: () -> Unit) {
+    var sec by remember { mutableFloatStateOf(initial.toFloat()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_crossfade)) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(crossfadeLabel(sec.roundToInt()), color = S4Colors.AccentBright, fontSize = 22.sp)
+                Slider(
+                    value = sec,
+                    onValueChange = { sec = it.roundToInt().toFloat() },
+                    valueRange = 0f..12f,
+                    steps = 11,
+                    colors = SliderDefaults.colors(
+                        thumbColor = S4Colors.AccentBright, activeTrackColor = S4Colors.AccentBright,
+                        inactiveTrackColor = Color(0xFF3A3F44),
+                        activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
+                    ),
+                )
+                Text(stringResource(R.string.settings_crossfade_hint), color = S4Colors.Text2, fontSize = 13.sp)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                AppSettings.update { it.copy(crossfadeSec = sec.roundToInt()) }
+                onDismiss()
+            }) { Text(stringResource(R.string.done)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable

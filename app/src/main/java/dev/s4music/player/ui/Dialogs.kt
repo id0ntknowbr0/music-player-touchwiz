@@ -48,7 +48,8 @@ import dev.s4music.player.data.Playlist
 import dev.s4music.player.data.PlaylistStore
 import dev.s4music.player.data.Song
 import dev.s4music.player.playback.PlaybackBridge
-import dev.s4music.player.playback.S4_BANDS_HZ
+import dev.s4music.player.playback.EQ_BANDS_HZ
+import dev.s4music.player.playback.SmartVolume
 import dev.s4music.player.playback.SoundPreset
 import dev.s4music.player.ui.theme.S4Colors
 import kotlin.math.roundToInt
@@ -66,6 +67,7 @@ private val sliderColors @Composable get() = SliderDefaults.colors(
 @Composable
 fun SoundAliveDialog(onDismiss: () -> Unit) {
     val s by PlaybackBridge.soundAlive.collectAsState()
+    val advanced by PlaybackBridge.eqAdvanced.collectAsState()
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } },
@@ -85,9 +87,9 @@ fun SoundAliveDialog(onDismiss: () -> Unit) {
                 }
                 if (s.preset == SoundPreset.CUSTOM) {
                     Spacer(Modifier.height(8.dp))
-                    S4_BANDS_HZ.forEachIndexed { i, hz ->
+                    EQ_BANDS_HZ.forEachIndexed { i, hz ->
                         LabeledSlider(
-                            label = if (hz >= 1000) "${hz / 1000f}k".replace(".0k", "k") else "$hz",
+                            label = if (hz >= 1000) "${hz / 1000}k" else "$hz",
                             value = s.customGains[i],
                             range = -10f..10f,
                             valueText = stringResource(R.string.eq_db_value, s.customGains[i].roundToInt()),
@@ -106,6 +108,45 @@ fun SoundAliveDialog(onDismiss: () -> Unit) {
                         PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(customVirtualizer = v.toInt()))
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(stringResource(R.string.eq_preamp), s.preampDb, -12f..12f,
+                    stringResource(R.string.eq_db_value, s.preampDb.roundToInt())) { v ->
+                    PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(preampDb = v.roundToInt().toFloat()))
+                }
+                if (advanced != false) {
+                    val pct = (s.balance * 100).roundToInt()
+                    LabeledSlider(
+                        stringResource(R.string.eq_balance), s.balance, -1f..1f,
+                        when {
+                            pct < 0 -> stringResource(R.string.eq_balance_left, -pct)
+                            pct > 0 -> stringResource(R.string.eq_balance_right, pct)
+                            else -> stringResource(R.string.eq_balance_centre)
+                        },
+                    ) { v ->
+                        // Snap to centre near the middle so it's easy to reset.
+                        val b = if (kotlin.math.abs(v) < 0.04f) 0f else (v * 50).roundToInt() / 50f
+                        PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(balance = b))
+                    }
+                } else {
+                    Text(stringResource(R.string.eq_basic_note), color = S4Colors.Text2, fontSize = 12.sp)
+                }
+
+                HorizontalDivider(Modifier.padding(vertical = 10.dp), color = S4Colors.Divider)
+                Text(stringResource(R.string.smart_volume), color = S4Colors.Text1, fontSize = 15.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        SmartVolume.OFF to R.string.smart_volume_off,
+                        SmartVolume.TRACK to R.string.smart_volume_track,
+                        SmartVolume.ALBUM to R.string.smart_volume_album,
+                    ).forEach { (mode, label) ->
+                        PresetChip(stringResource(label), s.smartVolume == mode, Modifier.weight(1f)) {
+                            PlaybackBridge.setSoundAlive(PlaybackBridge.soundAlive.value.copy(smartVolume = mode))
+                        }
+                    }
+                }
+                Text(stringResource(R.string.smart_volume_note), color = S4Colors.Text2, fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 6.dp))
                 Spacer(Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.soundalive_note),
@@ -180,8 +221,9 @@ fun PlaySpeedDialog(current: Float, onSet: (Float) -> Unit, onDismiss: () -> Uni
 // ---------- Music auto off ----------
 
 @Composable
-fun SleepTimerDialog(onSet: (Int?) -> Unit, onDismiss: () -> Unit) {
+fun SleepTimerDialog(onSet: (Int?) -> Unit, onAfterCurrent: () -> Unit, onDismiss: () -> Unit) {
     val remaining = rememberSleepRemaining()
+    val afterCurrent by PlaybackBridge.sleepAfterCurrent.collectAsState()
     val options = listOf(
         null to R.string.sleep_off, 15 to R.string.sleep_15, 30 to R.string.sleep_30,
         60 to R.string.sleep_60, 90 to R.string.sleep_90, 120 to R.string.sleep_120,
@@ -195,6 +237,9 @@ fun SleepTimerDialog(onSet: (Int?) -> Unit, onDismiss: () -> Unit) {
                 if (remaining != null) {
                     Text(stringResource(R.string.sleep_remaining, formatTime(remaining)), color = S4Colors.AccentBright, fontSize = 14.sp)
                     Spacer(Modifier.height(8.dp))
+                } else if (afterCurrent) {
+                    Text(stringResource(R.string.sleep_after_current_on), color = S4Colors.AccentBright, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
                 }
                 options.forEach { (minutes, label) ->
                     Row(
@@ -202,12 +247,23 @@ fun SleepTimerDialog(onSet: (Int?) -> Unit, onDismiss: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(
-                            selected = minutes == null && remaining == null,
+                            selected = minutes == null && remaining == null && !afterCurrent,
                             onClick = { onSet(minutes); onDismiss() },
                             colors = RadioButtonDefaults.colors(selectedColor = S4Colors.Accent),
                         )
                         Text(stringResource(label), color = S4Colors.Text1)
                     }
+                }
+                Row(
+                    Modifier.fillMaxWidth().clickable { onAfterCurrent(); onDismiss() },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = afterCurrent,
+                        onClick = { onAfterCurrent(); onDismiss() },
+                        colors = RadioButtonDefaults.colors(selectedColor = S4Colors.Accent),
+                    )
+                    Text(stringResource(R.string.sleep_after_current), color = S4Colors.Text1)
                 }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp), color = S4Colors.Divider)
                 Text(pluralStringResource(R.plurals.sleep_custom, custom.roundToInt(), custom.roundToInt()), color = S4Colors.Text1, fontSize = 14.sp)

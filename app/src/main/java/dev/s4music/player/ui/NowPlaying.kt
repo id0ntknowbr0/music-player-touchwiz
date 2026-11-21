@@ -106,6 +106,7 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
     var panel by rememberSaveable { mutableStateOf(Panel.Art) }
     val ab by PlaybackBridge.abRepeat.collectAsState()
     val sleepAt by PlaybackBridge.sleepAtElapsed.collectAsState()
+    val sleepAfterCurrent by PlaybackBridge.sleepAfterCurrent.collectAsState()
     val favourites by Favourites.ids.collectAsState()
 
     Column(
@@ -156,7 +157,7 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit) {
             Text(if (ps.queue.isEmpty()) "" else stringResource(R.string.queue_position, ps.index + 1, ps.queue.size),
                 color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Row(Modifier.align(Alignment.CenterStart).padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (sleepAt != null) {
+                if (sleepAt != null || sleepAfterCurrent) {
                     Icon(Icons.Default.Bedtime, stringResource(R.string.music_auto_off_on), tint = TimeBlue,
                         modifier = Modifier.size(18.dp).clickable { ui.showDialog(GlobalDialog.SleepTimer) })
                     Spacer(Modifier.width(8.dp))

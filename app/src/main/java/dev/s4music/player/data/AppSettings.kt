@@ -28,6 +28,9 @@ data class Settings(
     val hiddenTabs: Set<LibraryTabId> = emptySet(),
     /** The user has agreed to send track info to lrclib.net. */
     val lyricsOnline: Boolean = false,
+    /** Crossfade length between songs in seconds; 0 = off (gapless playback). */
+    val crossfadeSec: Int = 0,
+    val skipSilence: Boolean = false,
 ) {
     val visibleTabs: List<LibraryTabId> get() = LibraryTabId.entries.filterNot { it in hiddenTabs }
 
@@ -43,6 +46,8 @@ object AppSettings {
     private const val K_SORT = "song_sort"
     private const val K_HIDDEN_TABS = "hidden_tabs"
     private const val K_LYRICS_ONLINE = "lyrics_online"
+    private const val K_CROSSFADE = "crossfade_sec"
+    private const val K_SKIP_SILENCE = "skip_silence"
 
     private lateinit var prefs: SharedPreferences
     private val _settings = MutableStateFlow(Settings())
@@ -60,6 +65,8 @@ object AppSettings {
             songSort = runCatching { SongSort.valueOf(prefs.getString(K_SORT, null)!!) }.getOrDefault(SongSort.TITLE),
             hiddenTabs = prefs.getStringSet(K_HIDDEN_TABS, null).orEmpty().mapNotNull(LibraryTabId::fromKey).toSet(),
             lyricsOnline = prefs.getBoolean(K_LYRICS_ONLINE, legacyConsent),
+            crossfadeSec = prefs.getInt(K_CROSSFADE, 0).coerceIn(0, 12),
+            skipSilence = prefs.getBoolean(K_SKIP_SILENCE, false),
         )
     }
 
@@ -72,6 +79,8 @@ object AppSettings {
             .putString(K_SORT, s.songSort.name)
             .putStringSet(K_HIDDEN_TABS, s.hiddenTabs.map { it.key }.toSet())
             .putBoolean(K_LYRICS_ONLINE, s.lyricsOnline)
+            .putInt(K_CROSSFADE, s.crossfadeSec)
+            .putBoolean(K_SKIP_SILENCE, s.skipSilence)
             .apply()
     }
 }

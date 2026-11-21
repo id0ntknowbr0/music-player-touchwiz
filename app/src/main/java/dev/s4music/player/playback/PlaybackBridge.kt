@@ -25,6 +25,12 @@ object PlaybackBridge {
     /** "Music auto off": [android.os.SystemClock.elapsedRealtime] at which playback pauses. */
     val sleepAtElapsed = MutableStateFlow<Long?>(null)
 
+    /** "Music auto off" → "After current song": pause when the playing song ends. */
+    val sleepAfterCurrent = MutableStateFlow(false)
+
+    /** Whether SoundAlive got the 10-band EQ with preamp and balance on this device (null until known). */
+    val eqAdvanced = MutableStateFlow<Boolean?>(null)
+
     private val _soundAlive = MutableStateFlow(SoundAliveSettings())
     val soundAlive: StateFlow<SoundAliveSettings> = _soundAlive.asStateFlow()
     private lateinit var prefs: SharedPreferences

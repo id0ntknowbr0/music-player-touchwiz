@@ -171,6 +171,17 @@
     <string name="eq_3d">3D</string>
     <string name="eq_db_value">%+d dB</string>
     <string name="percent_value">%d%%</string>
+    <string name="eq_preamp">Preamp</string>
+    <string name="eq_balance">Balance</string>
+    <string name="eq_balance_left">L %d</string>
+    <string name="eq_balance_right">R %d</string>
+    <string name="eq_balance_centre">Centre</string>
+    <string name="eq_basic_note">This device doesn’t support the advanced equaliser, so balance is unavailable.</string>
+    <string name="smart_volume">Smart volume</string>
+    <string name="smart_volume_off">Off</string>
+    <string name="smart_volume_track">Track</string>
+    <string name="smart_volume_album">Album</string>
+    <string name="smart_volume_note">Evens out loudness between songs using ReplayGain tags. Album mode keeps the level differences within an album. Songs without tags play unchanged.</string>
     <string name="soundalive_note">Effects use Android’s built-in audio effects, so results vary between devices and outputs.</string>
 
     <!-- Music auto off -->
@@ -180,6 +191,8 @@
     <string name="sleep_60">After 1 hr</string>
     <string name="sleep_90">After 1 hr 30 mins</string>
     <string name="sleep_120">After 2 hrs</string>
+    <string name="sleep_after_current">After current song</string>
+    <string name="sleep_after_current_on">Music will stop after this song</string>
     <string name="sleep_remaining">Music will stop in %1$s</string>
     <plurals name="sleep_custom">
         <item quantity="one">Custom: %d min</item>
@@ -254,6 +267,16 @@
     <string name="sort_artist">Artist</string>
     <string name="sort_album">Album</string>
     <string name="sort_date_added">Date added (newest first)</string>
+    <string name="settings_section_playback">Playback</string>
+    <string name="settings_crossfade">Crossfade</string>
+    <string name="settings_crossfade_off">Off (gapless playback)</string>
+    <plurals name="settings_crossfade_value">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+    <string name="settings_crossfade_hint">Fades each song into the next. Turn it off for live and concept albums that should play without gaps.</string>
+    <string name="settings_skip_silence">Skip silence</string>
+    <string name="settings_skip_silence_summary">Skips silent parts within and between songs.</string>
     <string name="settings_section_lyrics">Lyrics</string>
     <string name="settings_lyrics_online">Search lyrics online</string>
     <string name="settings_lyrics_online_summary">Lets the lyrics screen look up lyrics on lrclib.net. Only the track’s title, artist, album and length are sent, and only when you tap “Search online”.</string>

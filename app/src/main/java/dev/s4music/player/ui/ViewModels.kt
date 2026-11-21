@@ -302,8 +302,15 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Sets or cancels "Music auto off" (null = off, which also cancels "after current song"). */
     fun setSleepTimer(minutes: Int?) {
+        PlaybackBridge.sleepAfterCurrent.value = false
         PlaybackBridge.sleepAtElapsed.value = minutes?.let { SystemClock.elapsedRealtime() + it * 60_000L }
+    }
+
+    fun setSleepAfterCurrent() {
+        PlaybackBridge.sleepAtElapsed.value = null
+        PlaybackBridge.sleepAfterCurrent.value = true
     }
 
     override fun onCleared() {
