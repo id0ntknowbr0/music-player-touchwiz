@@ -6,7 +6,7 @@
     android:minHeight="150dp"
     android:minResizeWidth="250dp"
     android:minResizeHeight="150dp"
-    android:previewImage="@drawable/tw_w_preview"
+    android:previewImage="@drawable/widget_preview_large"
     android:previewLayout="@layout/widget_player_large"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"

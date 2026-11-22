@@ -53,14 +53,14 @@ class ScreenshotTest {
         val vm = PlayerViewModel(app)
         val ui = UiActions(app, vm)
         val names = listOf("Add Space and Time" to "Blush/Blink", "Breaking Silence" to "Radiance", "Jam Beats Vol I" to "DJ Jam Beats",
-            "Over the horizon" to "Samsung", "Passing Thru Fears" to "Invoke", "Point of No Return" to "Adverse to Reaction",
+            "Coastline" to "Kitewire", "Passing Thru Fears" to "Invoke", "Point of No Return" to "Adverse to Reaction",
             "Sessions from the Loft" to "Midnight Passing", "Stronghold Syndrome" to "Brice Thomas", "Tidal" to "Waves", "Zero" to "Nil")
         val songs = names.mapIndexed { i, (t, a) ->
             dev.s4music.player.data.Song(i.toLong() + 1, t, a, i.toLong(), "Album $i", i.toLong(), "Pop", 2013, 1, 200_000, "Music", 0, "/sdcard/Music/$t.mp3", "$t.mp3")
         }
         val lib = dev.s4music.player.data.Library(songs, emptyList(), emptyList(), emptyList(), emptyList())
-        val state = PlayerUiState(connected = true, mediaId = "4", title = "Over the horizon", artist = "Samsung",
-            isPlaying = true, positionMs = 15_000, durationMs = 259_000, queue = listOf(QueueEntry("4", "Over the horizon", "Samsung")), index = 0)
+        val state = PlayerUiState(connected = true, mediaId = "4", title = "Coastline", artist = "Kitewire",
+            isPlaying = true, positionMs = 15_000, durationMs = 259_000, queue = listOf(QueueEntry("4", "Coastline", "Kitewire")), index = 0)
         captureRoboImage("build/screens/library.png") {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui) {
@@ -82,14 +82,14 @@ class ScreenshotTest {
         val vm = PlayerViewModel(app)
         val ui = UiActions(app, vm)
         val names = listOf("Add Space and Time" to "Blush/Blink", "Breaking Silence" to "Radiance", "Jam Beats Vol I" to "DJ Jam Beats",
-            "Over the horizon" to "Samsung", "Passing Thru Fears" to "Invoke", "Point of No Return" to "Adverse to Reaction",
+            "Coastline" to "Kitewire", "Passing Thru Fears" to "Invoke", "Point of No Return" to "Adverse to Reaction",
             "Sessions from the Loft" to "Midnight Passing", "Stronghold Syndrome" to "Brice Thomas", "Tidal" to "Waves", "Zero" to "Nil")
         val songs = names.mapIndexed { i, (t, a) ->
             dev.s4music.player.data.Song(i.toLong() + 1, t, a, i.toLong(), "Album $i", i.toLong(), "Pop", 2013, 1, 200_000, "Music", 0, "/sdcard/Music/$t.mp3", "$t.mp3")
         }
         val lib = dev.s4music.player.data.Library(songs.filter { it.id == 4L }, emptyList(), emptyList(), emptyList(), emptyList())
-        val state = PlayerUiState(connected = true, mediaId = "4", title = "Over the horizon", artist = "Samsung",
-            isPlaying = false, positionMs = 15_000, durationMs = 259_000, queue = listOf(QueueEntry("4", "Over the horizon", "Samsung")), index = 0)
+        val state = PlayerUiState(connected = true, mediaId = "4", title = "Coastline", artist = "Kitewire",
+            isPlaying = false, positionMs = 15_000, durationMs = 259_000, queue = listOf(QueueEntry("4", "Coastline", "Kitewire")), index = 0)
         captureRoboImage("build/screens/library_paused.png") {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui) {
@@ -109,7 +109,7 @@ class ScreenshotTest {
         org.robolectric.Shadows.shadowOf(app).declareComponentUnbindable(
             android.content.ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
         val ui = UiActions(app, PlayerViewModel(app))
-        val song = dev.s4music.player.data.Song(4, "Over the horizon", "Samsung", 1, "Galaxy", 1, "Pop", 2013, 1,
+        val song = dev.s4music.player.data.Song(4, "Coastline", "Kitewire", 1, "Coastline Radio", 1, "Pop", 2013, 1,
             259_000, "Music", 0, "/sdcard/Music/x.mp3", "x.mp3")
         dev.s4music.player.data.Favourites.toggle(4)
         val lib = dev.s4music.player.data.Library(listOf(song), emptyList(), emptyList(), emptyList(), emptyList())
@@ -150,7 +150,7 @@ class ScreenshotTest {
     }
 
     private fun renderWidget(layout: Int, w: Int, h: Int, file: String) {
-        val state = WidgetState("Over the Horizon", "Samsung", null, playing = true, album = "Galaxy S4 Sounds")
+        val state = WidgetState("Coastline", "Kitewire", null, playing = true, album = "Coastline Radio")
         val views = WidgetUpdater.build(app, state, null, layout)
         val parent = FrameLayout(app)
         val v = views.apply(app, parent)

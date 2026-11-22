@@ -289,6 +289,28 @@ class ShowcaseScreens {
         shoot("06_settings")
     }
 
+    /**
+     * The widget picker's preview images (res/drawable-nodpi/widget_preview*.webp): the app's own
+     * widgets with nothing playing, so they show only "Music Player" and the default cover.
+     */
+    @Test
+    fun widgetPreviews() {
+        fun render(layout: Int, width: Int, height: Int, file: String) {
+            val parent = FrameLayout(app)
+            parent.addView(WidgetUpdater.build(app, WidgetState(), null, layout).apply(app, parent),
+                FrameLayout.LayoutParams(width, height))
+            parent.measure(
+                android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY),
+                android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY))
+            parent.layout(0, 0, width, height)
+            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            parent.draw(Canvas(bmp))
+            bmp.captureRoboImage("build/showcase/$file.png")
+        }
+        render(R.layout.widget_player, 720, 200, "widget_preview")
+        render(R.layout.widget_player_large, 720, 400, "widget_preview_large")
+    }
+
     /** All three widgets on a plain wallpaper, like a home screen. */
     @Test
     fun widgets() {
