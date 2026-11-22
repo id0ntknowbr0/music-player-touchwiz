@@ -11,7 +11,10 @@ import android.graphics.Shader
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -61,7 +64,16 @@ import kotlin.math.sin
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w360dp-h760dp-xhdpi")
-class ShowcaseScreens {
+open class ShowcaseScreens {
+    /** System font size; [LargeFontScreens] renders everything again at the largest setting. */
+    protected open val fontScale = 1f
+    protected open val outDir = "build/showcase"
+
+    private fun screen(content: @Composable () -> Unit) = compose.setContent {
+        val d = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale)) { content() }
+    }
+
     @get:Rule val compose = createComposeRule()
     private val app: Application get() = ApplicationProvider.getApplicationContext()
 
@@ -110,6 +122,7 @@ class ShowcaseScreens {
 
     @Before
     fun setUp() {
+        org.robolectric.RuntimeEnvironment.setFontScale(fontScale)
         shadowOf(app).declareComponentUnbindable(ComponentName(app, dev.s4music.player.playback.PlaybackService::class.java))
         albums.forEach { a ->
             CoverStore.saveForAlbum(app, a.id, songs.filter { it.albumId == a.id }.map { it.id }, cover(a))
@@ -179,12 +192,12 @@ class ShowcaseScreens {
         compose.waitForIdle()
         Thread.sleep(1_000)
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("build/showcase/$name.png")
+        compose.onRoot().captureRoboImage("$outDir/$name.png")
     }
 
     @Test
     fun songs() {
-        compose.setContent {
+        screen {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui()) {
                     Column {
@@ -199,7 +212,7 @@ class ShowcaseScreens {
 
     @Test
     fun albums() {
-        compose.setContent {
+        screen {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui()) {
                     Column {
@@ -218,7 +231,7 @@ class ShowcaseScreens {
     @Test
     fun lastTabs() {
         dev.s4music.player.data.AppSettings.update { it.copy(hiddenTabs = emptySet()) }
-        compose.setContent {
+        screen {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui()) {
                     LibraryScreen(library, false, emptyList(), current.id, initialTab = LibraryTabId.MUSIC_SQUARE)
@@ -232,7 +245,7 @@ class ShowcaseScreens {
 
     @Test
     fun nowPlaying() {
-        compose.setContent {
+        screen {
             S4Theme { CompositionLocalProvider(LocalUi provides ui()) { NowPlayingScreen(playerState(playing = false), library, onClose = {}) } }
         }
         shoot("03_now_playing")
@@ -253,14 +266,14 @@ class ShowcaseScreens {
             [01:27.00]Of the radio
             """.trimIndent()
         )
-        compose.setContent {
+        screen {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui()) {
                     NowPlayingScreen(playerState(), library, onClose = {}, startWithLyrics = true)
                 }
             }
         }
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("Singing louder than the gulls").fetchSemanticsNodes().isNotEmpty() }
+        runCatching { compose.waitUntil(5_000) { compose.onAllNodesWithText("Singing louder than the gulls", substring = true).fetchSemanticsNodes().isNotEmpty() } }
         shoot("04_lyrics")
     }
 
@@ -273,7 +286,7 @@ class ShowcaseScreens {
         })
         val grid = buildMoodGrid(library.songs, MoodStore.features.value)
         val selection = grid.cells.entries.sortedByDescending { it.value.size }.take(3).map { it.key }
-        compose.setContent {
+        screen {
             S4Theme {
                 CompositionLocalProvider(LocalUi provides ui()) {
                     MusicSquareTab(library, current.id, actions = {}, initialSelection = selection)
@@ -285,7 +298,7 @@ class ShowcaseScreens {
 
     @Test
     fun settings() {
-        compose.setContent { S4Theme { SettingsScreen(dev.s4music.player.ui.LibraryViewModel(app), onBack = {}) } }
+        screen { S4Theme { SettingsScreen(dev.s4music.player.ui.LibraryViewModel(app), onBack = {}) } }
         shoot("06_settings")
     }
 
@@ -305,7 +318,7 @@ class ShowcaseScreens {
             parent.layout(0, 0, width, height)
             val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             parent.draw(Canvas(bmp))
-            bmp.captureRoboImage("build/showcase/$file.png")
+            bmp.captureRoboImage("$outDir/$file.png")
         }
         render(R.layout.widget_player, 720, 200, "widget_preview")
         render(R.layout.widget_player_large, 720, 400, "widget_preview_large")
@@ -339,6 +352,6 @@ class ShowcaseScreens {
         draw(R.layout.widget_player_large, 24, 40, 672, 380)
         draw(R.layout.widget_player, 24, 450, 672, 170)
         draw(R.layout.widget_play_pause, 24, 650, 96, 96)
-        bmp.captureRoboImage("build/showcase/07_widgets.png")
+        bmp.captureRoboImage("$outDir/07_widgets.png")
     }
 }

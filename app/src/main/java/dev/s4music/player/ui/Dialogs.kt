@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -182,9 +183,10 @@ private fun LabeledSlider(
     onChange: (Float) -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = S4Colors.Text1, fontSize = 13.sp, modifier = Modifier.width(44.dp))
+        Text(label, color = S4Colors.Text1, fontSize = 13.sp, maxLines = 1, modifier = Modifier.widthIn(min = 44.dp))
         Slider(value, onChange, Modifier.weight(1f), valueRange = range, colors = sliderColors)
-        Text(valueText, color = S4Colors.Text2, fontSize = 12.sp, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
+        Text(valueText, color = S4Colors.Text2, fontSize = 12.sp, maxLines = 1, modifier = Modifier.widthIn(min = 52.dp),
+            textAlign = TextAlign.End)
     }
 }
 

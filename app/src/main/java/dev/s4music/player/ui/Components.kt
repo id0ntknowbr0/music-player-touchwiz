@@ -36,6 +36,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -160,6 +162,32 @@ fun AlbumArt(
     }
 }
 
+
+// ---------- Large system font sizes ----------
+
+/**
+ * Lets the text inside follow the system font size up to [max] times its normal size, and no
+ * further. For the fixed TouchWiz bars (mini player, Now Playing header), where unlimited growth
+ * would push the buttons out; lists, settings and dialogs grow freely instead.
+ */
+@Composable
+fun LimitFontScale(max: Float, content: @Composable () -> Unit) {
+    val d = androidx.compose.ui.platform.LocalDensity.current
+    if (d.fontScale <= max) content()
+    else androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, max),
+        content = content,
+    )
+}
+
+/**
+ * [base] plus however much [textSp] worth of text lines grew because of the system font size, so
+ * a bar sized around its text keeps room for everything else in it.
+ */
+@Composable
+fun grownBy(base: androidx.compose.ui.unit.Dp, textSp: Float): androidx.compose.ui.unit.Dp =
+    base + (textSp * (androidx.compose.ui.platform.LocalDensity.current.fontScale - 1f)).coerceAtLeast(0f).dp
+
 // ---------- Header bar ----------
 
 @Composable
@@ -170,7 +198,7 @@ fun HeaderBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        Modifier.fillMaxWidth().height(56.dp).background(S4Colors.HeaderGradient),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).background(S4Colors.HeaderGradient),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
@@ -181,7 +209,8 @@ fun HeaderBar(
         Column(Modifier.weight(1f)) {
             Text(title, color = S4Colors.PlayerTitle, fontSize = 19.sp, fontWeight = FontWeight.Medium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) Text(subtitle, color = S4Colors.Text2, fontSize = 12.sp, maxLines = 1)
+            if (subtitle != null) Text(subtitle, color = S4Colors.Text2, fontSize = 12.sp, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
         }
         actions()
     }
@@ -215,12 +244,12 @@ val NowPlayingBlue = androidx.compose.ui.graphics.Color(0xFF3FA9F5)
 @Composable
 fun ShuffleHeader(onShuffle: (() -> Unit)?, trailing: @Composable RowScope.() -> Unit = {}) {
     Row(
-        Modifier.fillMaxWidth().height(48.dp).background(androidx.compose.ui.graphics.Color.Black),
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).background(androidx.compose.ui.graphics.Color.Black),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onShuffle != null) {
             Row(
-                Modifier.fillMaxHeight().clickable(onClick = onShuffle).padding(horizontal = 14.dp),
+                Modifier.heightIn(min = 48.dp).clickable(onClick = onShuffle).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.shuffle), color = RowTitle, fontSize = 18.sp)
@@ -285,10 +314,11 @@ fun SongRow(song: Song, isCurrent: Boolean, menu: List<MenuAction>, onClick: () 
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     Row(
-        Modifier.fillMaxWidth().height(76.dp)
+        // At least the TouchWiz row height; taller when a large system font needs it.
+        Modifier.fillMaxWidth().heightIn(min = 76.dp)
             .combinedClickable(onClick = onClick,
                 onLongClick = { haptics.longPress(); menuOpen = true })
-            .padding(start = 4.dp, end = 10.dp),
+            .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AlbumArt(song.albumId, Modifier.size(66.dp), sizePx = 200, shape = androidx.compose.ui.graphics.RectangleShape,
@@ -318,10 +348,10 @@ fun GroupRow(
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     Row(
-        Modifier.fillMaxWidth().height(76.dp)
+        Modifier.fillMaxWidth().heightIn(min = 76.dp)
             .combinedClickable(onClick = onClick,
                 onLongClick = { if (menu.isNotEmpty()) { haptics.longPress(); menuOpen = true } })
-            .padding(start = 4.dp, end = 10.dp),
+            .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -414,12 +444,23 @@ fun AlphabetIndexed(
             shown?.let { letter ->
                 Box(Modifier.align(Alignment.Center).size(84.dp).clip(RoundedCornerShape(6.dp))
                     .background(androidx.compose.ui.graphics.Color(0xDD1E2A35)), contentAlignment = Alignment.Center) {
-                    Text(letter.toString(), color = androidx.compose.ui.graphics.Color.White, fontSize = 44.sp)
+                    LimitFontScale(1.3f) {
+                        Text(letter.toString(), color = androidx.compose.ui.graphics.Color.White, fontSize = 44.sp)
+                    }
                 }
             }
         }
+        // The letters are sized to their slots rather than to the system font size: all 28 have
+        // to fit the strip's height whatever the font setting.
+        var stripHeightPx by remember { mutableStateOf(0) }
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val letterSize = with(density) {
+            val slot = (stripHeightPx.toFloat() / INDEX_LETTERS.length * 0.8f).toDp()
+            (if (stripHeightPx == 0 || slot > 11.dp) 11.dp else slot).toSp()
+        }
         Column(
             Modifier.fillMaxHeight().width(26.dp).background(androidx.compose.ui.graphics.Color(0xFF27282B))
+                .onSizeChanged { stripHeightPx = it.height }
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         var last: Char? = null
@@ -447,7 +488,7 @@ fun AlphabetIndexed(
             INDEX_LETTERS.forEach { c ->
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(c.toString(), color = if (c == shown) NowPlayingBlue else androidx.compose.ui.graphics.Color(0xFF8A8F96),
-                        fontSize = 11.sp, maxLines = 1)
+                        fontSize = letterSize, lineHeight = letterSize, maxLines = 1, softWrap = false)
                 }
             }
         }

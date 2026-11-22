@@ -172,7 +172,7 @@ private fun MoodSquare(grid: MoodGrid, selected: Set<Int>, onSelectionChange: (S
     Column(Modifier.widthIn(max = 420.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(stringResource(R.string.square_passionate), color = axis, fontSize = 12.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(22.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(grownBy(22.dp, 24f)), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.square_calm), color = axis, fontSize = 12.sp, maxLines = 1,
                     modifier = Modifier.vertical(-90f))
             }
@@ -230,7 +230,7 @@ private fun MoodSquare(grid: MoodGrid, selected: Set<Int>, onSelectionChange: (S
                     }
                 }
             }
-            Box(Modifier.width(22.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(grownBy(22.dp, 24f)), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.square_exciting), color = axis, fontSize = 12.sp, maxLines = 1,
                     modifier = Modifier.vertical(90f))
             }

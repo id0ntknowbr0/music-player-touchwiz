@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 4x2 widget: large album art with title, artist and album, controls underneath. -->
+<!-- Text sizes are in dp, not sp: the widget has a fixed size on the home screen, so text that
+     grew with a large system font would push the buttons out. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="SpUsage"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -47,7 +51,7 @@
                 android:maxLines="2"
                 android:text="@string/app_name"
                 android:textColor="#FFF0F0F0"
-                android:textSize="17sp"
+                android:textSize="17dp"
                 android:textStyle="bold" />
 
             <TextView
@@ -59,7 +63,7 @@
                 android:singleLine="true"
                 android:text="@string/widget_tap_to_play"
                 android:textColor="#FF96CFFF"
-                android:textSize="14sp" />
+                android:textSize="14dp" />
 
             <TextView
                 android:id="@+id/widget_album"
@@ -68,7 +72,7 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:textColor="#FFA6A3A3"
-                android:textSize="13sp" />
+                android:textSize="13dp" />
         </LinearLayout>
     </LinearLayout>
 

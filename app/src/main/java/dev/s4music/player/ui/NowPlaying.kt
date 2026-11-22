@@ -123,7 +123,8 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit, s
             .clickable(remember { MutableInteractionSource() }, indication = null) {}
     ) {
         // ---- Header: [close] | artist / TITLE / album | [volume] ----
-        Box(Modifier.fillMaxWidth().height(75.dp)) {
+        // Three 24sp lines of text; the header grows with a large system font (up to 1.5x).
+        LimitFontScale(1.5f) { Box(Modifier.fillMaxWidth().height(grownBy(75.dp, 72f))) {
             Image(painterResource(R.drawable.tw_top_bg), null, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds)
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(139f).fillMaxHeight().clickable(onClick = onClose), contentAlignment = Alignment.Center) {
@@ -144,10 +145,10 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit, s
                     }
                 }
             }
-        }
+        } }
 
         // ---- "1/2" counter under the blue glow ----
-        Box(Modifier.fillMaxWidth().height(44.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(grownBy(44.dp, 24f)), contentAlignment = Alignment.Center) {
             // Clipped so the glow stays below the header and never tints its borders.
             Canvas(Modifier.matchParentSize().clipToBounds()) {
                 scale(scaleX = 1.8f, scaleY = 1f, pivot = Offset(size.width / 2, 0f)) {
@@ -502,12 +503,13 @@ private fun QueueList(ps: PlayerUiState) {
 // ---------- Mini player (S4 library bottom bar) ----------
 
 @Composable
-fun MiniPlayer(ps: PlayerUiState, library: Library, onOpen: () -> Unit) {
+fun MiniPlayer(ps: PlayerUiState, library: Library, onOpen: () -> Unit) = LimitFontScale(1.5f) {
     val vm = LocalUi.current.player
     val song = ps.currentSongId?.let { library.byId[it] }
     val fraction = if (ps.durationMs > 0) (ps.positionMs.toFloat() / ps.durationMs).coerceIn(0f, 1f) else 0f
     Row(
-        Modifier.fillMaxWidth().height(108.dp)
+        // Two 24sp lines of text above the buttons; taller with a large system font.
+        Modifier.fillMaxWidth().height(grownBy(108.dp, 48f))
             .background(Brush.verticalGradient(listOf(Color(0xFF3D4045), Color(0xFF54575C))))
     ) {
         AlbumArt(
@@ -521,7 +523,7 @@ fun MiniPlayer(ps: PlayerUiState, library: Library, onOpen: () -> Unit) {
                 Spacer(Modifier.width(6.dp))
                 Text(
                     if (ps.artist.isEmpty()) ps.title else "${ps.title} - ${ps.artist}",
-                    color = Color(0xFFF0F0F0), fontSize = 14.sp, maxLines = 1, modifier = Modifier.basicMarquee(),
+                    color = Color(0xFFF0F0F0), fontSize = 14.sp, maxLines = 1, modifier = Modifier.weight(1f).basicMarquee(),
                 )
             }
             Canvas(Modifier.fillMaxWidth().height(8.dp)) {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -72,6 +73,7 @@ private sealed interface LyricsState {
 }
 
 /** Lyrics view shown over the album art. Tap empty space to go back to the art. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit, background: Color = LyricBg) {
     val context = LocalContext.current
@@ -133,7 +135,10 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit, background: 
                         val current = lyrics.currentIndex(positionMs)
                         val listState = rememberLazyListState()
                         LaunchedEffect(current) {
-                            if (current >= 0) listState.animateScrollToItem((current - 3).coerceAtLeast(0))
+                            // Keep the current line a third of the way down, however tall the lines are.
+                            if (current >= 0) {
+                                listState.animateScrollToItem(current, -listState.layoutInfo.viewportSize.height / 3)
+                            }
                         }
                         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(vertical = 24.dp)) {
                             itemsIndexed(lyrics.lines) { i, line ->
@@ -159,9 +164,9 @@ fun LyricsPanel(song: Song?, positionMs: Long, onClose: () -> Unit, background: 
             if (busy) CircularProgressIndicator(color = S4Colors.Accent, modifier = Modifier.size(36.dp))
         }
 
-        // Actions
-        Row(Modifier.fillMaxWidth().background(Color(0xCC26292C)).padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        // Actions; they wrap onto a second line when a large system font makes them too wide.
+        FlowRow(Modifier.fillMaxWidth().background(Color(0xCC26292C)).padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly) {
             TextButton(onClick = { importer.launch(arrayOf("*/*")) }, enabled = song != null) {
                 Text(stringResource(R.string.lyrics_import), color = S4Colors.Accent)
             }
