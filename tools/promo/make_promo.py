@@ -149,6 +149,16 @@ def logo(size):
     return img.resize((size, size), Image.LANCZOS)
 
 
+TW_ICON = os.path.join(ROOT, "app", "src", "main", "res", "drawable-xhdpi", "tw_app_icon.webp")
+
+
+def tw_icon(size):
+    """The original round TouchWiz Music Player icon (Samsung's, the same one the app uses as its launcher icon)."""
+    img = Image.open(TW_ICON).convert("RGBA")
+    img = img.crop(img.getchannel("A").getbbox())
+    return img.resize((size, size), Image.LANCZOS)
+
+
 def text_layer(lines, max_width=None, align="left", spacing=1.18):
     """lines: [(text, font, colour)]; text may contain '\\n'. Returns a tight RGBA image."""
     rows = []
@@ -237,10 +247,10 @@ def banner(w, h, path):
     paste(bg, p, w * 0.74 - p.width / 2, h * 0.30 - m)
     # Text on the left.
     x = round(64 * s)
-    lg = logo(round(64 * s))
-    bg.alpha_composite(lg, (x, round(72 * s)))
+    lg = tw_icon(round(72 * s))
+    bg.alpha_composite(lg, (x, round(68 * s)))
     title = text_layer([("Music Player", font("bold", round(40 * s)), TEXT)])
-    paste(bg, title, x + lg.width + round(18 * s), round(72 * s) + (lg.height - title.height) / 2 + 2 * s)
+    paste(bg, title, x + lg.width + round(18 * s), round(68 * s) + (lg.height - title.height) / 2 + 2 * s)
     head = text_layer([(HEADLINE, font("bold", round(38 * s)), TEXT)])
     paste(bg, head, x, round(190 * s))
     sub = text_layer([("Synced lyrics, Music Square moods, a 10-band EQ,\ncrossfade, widgets and Android Auto.",
