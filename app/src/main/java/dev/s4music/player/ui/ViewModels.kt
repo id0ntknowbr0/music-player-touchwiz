@@ -91,6 +91,13 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Tests: show these songs instead of scanning MediaStore. */
+    @androidx.annotation.VisibleForTesting
+    internal fun showSongs(songs: List<Song>) {
+        raw.value = songs
+        _loading.value = false
+    }
+
     override fun onCleared() {
         if (started) getApplication<Application>().contentResolver.unregisterContentObserver(observer)
     }

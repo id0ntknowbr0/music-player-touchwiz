@@ -110,6 +110,8 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit, s
     val audio = remember { context.getSystemService(AudioManager::class.java) }
     val song = ps.currentSongId?.let { library.byId[it] }
     var panel by rememberSaveable { mutableStateOf(if (startWithLyrics) Panel.Lyrics else Panel.Art) }
+    // Back first closes the lyrics or queue, then the player itself.
+    androidx.activity.compose.BackHandler(enabled = panel != Panel.Art) { panel = Panel.Art }
     val ab by PlaybackBridge.abRepeat.collectAsState()
     val sleepAt by PlaybackBridge.sleepAtElapsed.collectAsState()
     val sleepAfterCurrent by PlaybackBridge.sleepAfterCurrent.collectAsState()

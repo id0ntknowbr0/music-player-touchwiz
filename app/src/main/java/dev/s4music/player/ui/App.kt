@@ -28,6 +28,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -66,6 +68,67 @@ sealed interface Screen {
     data object Search : Screen
     data class Songs(val title: String, val source: SongSource) : Screen
     data object Settings : Screen
+}
+
+
+/**
+ * Writes the back stack as four strings per screen (kind, source, argument, title), so it can be
+ * saved with the activity and survive rotation and the app being killed in the background.
+ */
+internal object BackStackSaver {
+    fun save(stack: List<Screen>): ArrayList<String> = ArrayList<String>().apply {
+        stack.forEach { s ->
+            when (s) {
+                Screen.Library -> addAll(listOf("library", "", "", ""))
+                Screen.Search -> addAll(listOf("search", "", "", ""))
+                Screen.Settings -> addAll(listOf("settings", "", "", ""))
+                is Screen.Songs -> {
+                    val (kind, arg) = when (val src = s.source) {
+                        is SongSource.Album -> "album" to src.id.toString()
+                        is SongSource.Artist -> "artist" to src.id.toString()
+                        is SongSource.Genre -> "genre" to src.key
+                        is SongSource.Folder -> "folder" to src.key
+                        is SongSource.Composer -> "composer" to src.key
+                        is SongSource.UserPlaylist -> "playlist" to src.id.toString()
+                        SongSource.MostPlayed -> "most_played" to ""
+                        SongSource.RecentlyPlayed -> "recently_played" to ""
+                        SongSource.RecentlyAdded -> "recently_added" to ""
+                        SongSource.Favourites -> "favourites" to ""
+                    }
+                    addAll(listOf("songs", kind, arg, s.title))
+                }
+            }
+        }
+    }
+
+    fun restore(saved: List<String>): List<Screen> {
+        val screens = saved.chunked(4).filter { it.size == 4 }.mapNotNull { (kind, source, arg, title) ->
+            when (kind) {
+                "library" -> Screen.Library
+                "search" -> Screen.Search
+                "settings" -> Screen.Settings
+                "songs" -> when (source) {
+                    "album" -> arg.toLongOrNull()?.let { SongSource.Album(it) }
+                    "artist" -> arg.toLongOrNull()?.let { SongSource.Artist(it) }
+                    "genre" -> SongSource.Genre(arg)
+                    "folder" -> SongSource.Folder(arg)
+                    "composer" -> SongSource.Composer(arg)
+                    "playlist" -> arg.toLongOrNull()?.let { SongSource.UserPlaylist(it) }
+                    "most_played" -> SongSource.MostPlayed
+                    "recently_played" -> SongSource.RecentlyPlayed
+                    "recently_added" -> SongSource.RecentlyAdded
+                    "favourites" -> SongSource.Favourites
+                    else -> null
+                }?.let { Screen.Songs(title, it) }
+                else -> null
+            }
+        }
+        return if (screens.firstOrNull() == Screen.Library) screens else listOf(Screen.Library)
+    }
+
+    val saver = androidx.compose.runtime.saveable.Saver<List<Screen>, ArrayList<String>>(
+        save = { save(it) }, restore = { restore(it) },
+    )
 }
 
 private const val SMART_LIMIT = 50
@@ -160,7 +223,17 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
     val favourites by Favourites.ids.collectAsStateWithLifecycle()
     val ps by playerVm.state.collectAsStateWithLifecycle()
 
-    var stack by remember { mutableStateOf(listOf<Screen>(Screen.Library)) }
+    // Back stack of screens. Each screen's own state (selected tab, scroll position, search text)
+    // is kept by [screenStates] while it is covered, so going back returns to exactly where you were.
+    var stack by rememberSaveable(stateSaver = BackStackSaver.saver) { mutableStateOf(listOf<Screen>(Screen.Library)) }
+    val screenStates = rememberSaveableStateHolder()
+    fun screenKey(index: Int) = "screen#$index"
+    fun goBack() {
+        if (stack.size <= 1) return
+        val closed = screenKey(stack.lastIndex)
+        stack = stack.dropLast(1)
+        screenStates.removeState(closed)   // opening it again later starts fresh
+    }
     var addToPlaylist by remember { mutableStateOf<List<Song>?>(null) }
     var details by remember { mutableStateOf<Song?>(null) }
     var editing by remember { mutableStateOf<Song?>(null) }
@@ -324,25 +397,26 @@ fun S4MusicApp(libraryVm: LibraryViewModel, playerVm: PlayerViewModel, openPlaye
         )
     }
 
-    BackHandler(enabled = !openPlayer.value && stack.size > 1) { stack = stack.dropLast(1) }
+    BackHandler(enabled = !openPlayer.value && stack.size > 1) { goBack() }
     BackHandler(enabled = openPlayer.value) { openPlayer.value = false }
 
     CompositionLocalProvider(LocalUi provides ui) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f)) {
-                    when (val screen = stack.last()) {
+                    val screen = stack.last()
+                    screenStates.SaveableStateProvider(screenKey(stack.lastIndex)) { when (screen) {
                         Screen.Library -> LibraryScreen(library, loading, playlists, ps.currentSongId)
-                        Screen.Search -> SearchScreen(library, ps.currentSongId, onBack = { stack = stack.dropLast(1) })
-                        Screen.Settings -> SettingsScreen(libraryVm, onBack = { stack = stack.dropLast(1) })
+                        Screen.Search -> SearchScreen(library, ps.currentSongId, onBack = ::goBack)
+                        Screen.Settings -> SettingsScreen(libraryVm, onBack = ::goBack)
                         is Screen.Songs -> {
                             val songs = remember(screen, library, playlists, stats, favourites) {
                                 screen.source.resolve(library, playlists, stats, favourites)
                             }
                             SongsScreen(screen, songs, library, playlists, ps.currentSongId,
-                                onBack = { stack = stack.dropLast(1) })
+                                onBack = ::goBack)
                         }
-                    }
+                    } }
                 }
                 if (ps.hasMedia) MiniPlayer(ps, library, onOpen = { openPlayer.value = true })
             }
