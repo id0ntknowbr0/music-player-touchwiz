@@ -192,7 +192,6 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit, s
                 }
                 PlayerMenu(ps, song?.let { s ->
                     listOf(
-                        MenuAction(stringResource(R.string.lyrics)) { panel = Panel.Lyrics },
                         MenuAction(stringResource(R.string.add_to_playlist)) { ui.addToPlaylist(listOf(s)) },
                         MenuAction(stringResource(R.string.edit_track_info)) { ui.editSong(s) },
                         MenuAction(stringResource(R.string.set_as)) { ui.setAs(s) },
@@ -232,7 +231,8 @@ fun NowPlayingScreen(ps: PlayerUiState, library: Library, onClose: () -> Unit, s
                     song?.albumId,
                     Modifier.padding(horizontal = 40.dp, vertical = 6.dp).widthIn(max = 440.dp).fillMaxWidth()
                         .aspectRatio(1f, matchHeightConstraintsFirst = true)
-                        .clickable { panel = Panel.Lyrics },
+                        // Tapping the cover is the way into the lyrics; TalkBack announces it as "Lyrics".
+                        .clickable(onClickLabel = stringResource(R.string.lyrics)) { panel = Panel.Lyrics },
                     sizePx = 1024,
                     shape = RoundedCornerShape(0.dp),
                     fallbackData = ps.artworkData,

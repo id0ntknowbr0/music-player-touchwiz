@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -84,6 +85,40 @@ class NavigationTest {
         compose.onNodeWithText("Breakwater").assertIsDisplayed()
         pressBack()
         compose.onNodeWithText("Sunny Mornings").assertIsDisplayed()
+    }
+
+    private fun showPlayer(startWithLyrics: Boolean, onClose: () -> Unit = {}) {
+        val library = dev.s4music.player.data.MediaStoreRepository.build(songs, dev.s4music.player.data.SongSort.TITLE)
+        val song = songs[1]
+        val ps = dev.s4music.player.ui.PlayerUiState(connected = true, mediaId = song.id.toString(), title = song.title,
+            artist = song.artist, album = song.album, durationMs = song.durationMs,
+            queue = listOf(dev.s4music.player.ui.QueueEntry(song.id.toString(), song.title, song.artist)))
+        compose.setContent {
+            S4Theme {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    dev.s4music.player.ui.LocalUi provides dev.s4music.player.ui.UiActions(app, PlayerViewModel(app)),
+                ) { dev.s4music.player.ui.NowPlayingScreen(ps, library, onClose, startWithLyrics) }
+            }
+        }
+    }
+
+    /** Lyrics open by tapping the cover; the three-dots menu no longer repeats them. */
+    @Test
+    fun playerMenuHasNoLyricsItem() {
+        showPlayer(startWithLyrics = false)
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Add to playlist").assertExists()   // the menu is open (a pop-up)
+        compose.onNodeWithText("Lyrics").assertDoesNotExist()
+    }
+
+    @Test
+    fun backClosesLyricsBeforeThePlayer() {
+        var closed = false
+        showPlayer(startWithLyrics = true) { closed = true }
+        compose.onNodeWithText("Import").assertIsDisplayed()
+        pressBack()
+        compose.onNodeWithText("Import").assertDoesNotExist()
+        assertEquals(false, closed)
     }
 
     @Test
