@@ -12,6 +12,8 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -294,6 +296,35 @@ open class ShowcaseScreens {
             }
         }
         shoot("05_music_square")
+    }
+
+    /**
+     * Frames for the promo video (build/showcase/promo/): squares on the Music Square lighting up
+     * one at a time, as if dragged across. Only at the normal font size.
+     */
+    @Test
+    fun musicSquareSteps() {
+        if (fontScale != 1f) return
+        MoodStore.put(songs.associate { s ->
+            s.id to MoodFeatures(tagsRead = true, analysed = true, tempo = 70f + (s.id * 37 % 110),
+                rmsDb = -26f + (s.id * 13 % 18), brightness = (s.id * 29 % 100) / 100f)
+        })
+        // A drag along the middle row, then down: (1,2) (2,2) (3,2) (3,3) (3,4).
+        val path = listOf(11, 12, 13, 18, 23)
+        var step by androidx.compose.runtime.mutableIntStateOf(0)
+        screen {
+            S4Theme {
+                CompositionLocalProvider(LocalUi provides ui()) {
+                    androidx.compose.runtime.key(step) {
+                        MusicSquareTab(library, current.id, actions = {}, initialSelection = path.take(step))
+                    }
+                }
+            }
+        }
+        for (k in 0..path.size) {
+            step = k
+            shoot("promo/square_$k")
+        }
     }
 
     @Test

@@ -1,8 +1,14 @@
 # Music Player (TouchWiz classic)
 
+![Music Player: the classic music player, rebuilt for modern Android](docs/promo/banner.png)
+
 A from-scratch Kotlin rebuild of the classic Samsung TouchWiz music player (Galaxy S3 / S4 / Grand Quattro era) for modern Android (Android 11 and newer).
 
 The original app's behaviour, layout and colours were studied from its APK, and the app was rewritten with Jetpack Compose and Media3. It contains no Samsung code.
+
+<p align="center">
+  <img src="docs/promo/promo.gif" width="720" alt="Short tour: Now Playing, the library, Music Square, synced lyrics and widgets">
+</p>
 
 <p align="center">
   <img src="docs/screenshots/songs.png" width="200" alt="Songs tab with the A–Z index bar and mini player">
@@ -108,6 +114,21 @@ The screenshots in this README are rendered by `ShowcaseScreens` into `app/build
 | `.../playback` | `PlaybackService` (Media3 library service and Android Auto browse tree), crossfade, SoundAlive effects, ReplayGain, output routes |
 | `.../widget` | Home screen widgets |
 | `.../ui` | Compose screens: library, now playing, Music Square, settings, dialogs |
+
+## Promo material
+
+Graphics and videos for sharing the app are in [`docs/promo`](docs/promo):
+
+| File | Size | For |
+|---|---|---|
+| [`promo_vertical.mp4`](docs/promo/promo_vertical.mp4) | 1080×1920, 28 s | Shorts, Reels, TikTok, stories |
+| [`promo_landscape.mp4`](docs/promo/promo_landscape.mp4) | 1920×1080, 28 s | YouTube, X, websites |
+| [`promo.gif`](docs/promo/promo.gif) | 720×405 | READMEs and forums |
+| [`banner.png`](docs/promo/banner.png) | 1280×640 | GitHub social preview, headers |
+| [`feature_graphic.png`](docs/promo/feature_graphic.png) | 1024×500 | Store-style feature graphic |
+| [`cards/`](docs/promo/cards) | 1080×1350 | One post per feature |
+
+They're built from the demo-library screenshots by `tools/promo/make_promo.py` (Pillow, NumPy and imageio-ffmpeg); see the script's header to rebuild them.
 
 ## Disclaimer
 
