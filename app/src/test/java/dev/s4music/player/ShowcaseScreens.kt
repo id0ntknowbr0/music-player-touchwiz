@@ -214,6 +214,22 @@ class ShowcaseScreens {
         shoot("02_albums")
     }
 
+    /** The tab bar scrolled to the end, where the Composers and Music square tabs are. */
+    @Test
+    fun lastTabs() {
+        dev.s4music.player.data.AppSettings.update { it.copy(hiddenTabs = emptySet()) }
+        compose.setContent {
+            S4Theme {
+                CompositionLocalProvider(LocalUi provides ui()) {
+                    LibraryScreen(library, false, emptyList(), current.id, initialTab = LibraryTabId.MUSIC_SQUARE)
+                }
+            }
+        }
+        compose.mainClock.advanceTimeBy(2_000)
+        shoot("tabs_end")
+        dev.s4music.player.data.AppSettings.update { it.copy(hiddenTabs = dev.s4music.player.data.DEFAULT_HIDDEN_TABS) }
+    }
+
     @Test
     fun nowPlaying() {
         compose.setContent {
@@ -250,7 +266,6 @@ class ShowcaseScreens {
 
     @Test
     fun musicSquare() {
-        if (!androidx.work.WorkManager.isInitialized()) androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder().build())
         // As if "Analyse songs" had run: varied tempo, level and brightness spread songs over the grid.
         MoodStore.put(songs.associate { s ->
             s.id to MoodFeatures(tagsRead = true, analysed = true, tempo = 70f + (s.id * 37 % 110),

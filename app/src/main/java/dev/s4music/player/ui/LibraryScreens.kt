@@ -66,6 +66,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -77,6 +78,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -220,14 +222,17 @@ private fun TwTabBar(tabs: List<LibraryTabId>, selectedTab: LibraryTabId, onSele
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        val bitmap = t.icon()
-                        if (bitmap != null) {
-                            Image(painterResource(bitmap), null, Modifier.size(36.dp), alpha = if (isSel) 1f else 0.85f)
-                        } else {
-                            Icon(t.vectorIcon(), null, Modifier.size(34.dp),
-                                tint = Color(0xFFE8EEF3).copy(alpha = if (isSel) 1f else 0.85f))
+                        // Same 36dp slot for every icon, so all the labels line up.
+                        Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                            val bitmap = t.icon()
+                            if (bitmap != null) {
+                                Image(painterResource(bitmap), null, Modifier.size(36.dp), alpha = if (isSel) 1f else 0.85f)
+                            } else {
+                                Icon(t.vectorIcon(), null, Modifier.size(30.dp),
+                                    tint = Color(0xFFE8EEF3).copy(alpha = if (isSel) 1f else 0.85f))
+                            }
                         }
-                        Text(stringResource(t.labelRes()), color = Color.White, fontSize = 15.sp, maxLines = 1)
+                        TabLabel(stringResource(t.labelRes()))
                     }
                     if (i < tabs.lastIndex) Spacer(Modifier.width(TabBorderWidth).fillMaxHeight())
                 }
@@ -235,6 +240,30 @@ private fun TwTabBar(tabs: List<LibraryTabId>, selectedTab: LibraryTabId, onSele
             Spacer(Modifier.fillMaxWidth().height(TabBorderWidth).background(Color.Black))
         }
     }
+}
+
+/**
+ * A tab's name on one centred line. Names too long for the tab ("Music square") shrink
+ * until they fit, down to 11sp; past that they end with an ellipsis.
+ */
+@Composable
+private fun TabLabel(text: String) {
+    var fontSize by remember(text) { mutableStateOf(15.sp) }
+    var fits by remember(text) { mutableStateOf(false) }
+    Text(
+        text,
+        color = Color.White,
+        fontSize = fontSize,
+        maxLines = 1,
+        softWrap = false,
+        overflow = if (fontSize.value <= 11f) TextOverflow.Ellipsis else TextOverflow.Clip,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp)
+            .drawWithContent { if (fits) drawContent() },   // don't flash the oversized first try
+        onTextLayout = { layout ->
+            if (layout.hasVisualOverflow && fontSize.value > 11f) fontSize = (fontSize.value - 1f).sp else fits = true
+        },
+    )
 }
 
 /** Song list with "Shuffle" row, A–Z index strip and a song count footer. */

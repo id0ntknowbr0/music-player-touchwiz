@@ -11,6 +11,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
@@ -74,9 +75,12 @@ class MoodWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         private const val QUICK = "mood_tags"
         private const val FULL = "mood_analysis"
 
+        /** Null if WorkManager isn't available (it always is in the app; not in off-device tests). */
+        private fun workManager(context: Context): WorkManager? = runCatching { WorkManager.getInstance(context) }.getOrNull()
+
         /** Reads BPM tags of songs not seen before. Cheap; runs whenever Music Square opens. */
         fun startQuickPass(context: Context) {
-            WorkManager.getInstance(context).enqueueUniqueWork(
+            workManager(context)?.enqueueUniqueWork(
                 QUICK, ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<MoodWorker>().build(),
             )
         }
@@ -87,20 +91,22 @@ class MoodWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 .setInputData(workDataOf(KEY_ANALYSE to true))
                 .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(FULL, ExistingWorkPolicy.KEEP, request)
+            workManager(context)?.enqueueUniqueWork(FULL, ExistingWorkPolicy.KEEP, request)
         }
 
         fun cancelAnalysis(context: Context) {
-            WorkManager.getInstance(context).cancelUniqueWork(FULL)
+            workManager(context)?.cancelUniqueWork(FULL)
         }
 
         /** (done, total) while the full analysis is queued or running, otherwise null. */
-        fun analysisProgress(context: Context): Flow<Pair<Int, Int>?> =
-            WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(FULL).map { infos ->
+        fun analysisProgress(context: Context): Flow<Pair<Int, Int>?> {
+            val wm = workManager(context) ?: return flowOf(null)
+            return wm.getWorkInfosForUniqueWorkFlow(FULL).map { infos ->
                 val info = infos.firstOrNull { !it.state.isFinished } ?: return@map null
                 if (info.state == WorkInfo.State.RUNNING) {
                     info.progress.getInt(KEY_DONE, 0) to info.progress.getInt(KEY_TOTAL, 0)
                 } else 0 to 0
             }
+        }
     }
 }
