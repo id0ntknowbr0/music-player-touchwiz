@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +78,7 @@ private enum class SettingsDialog { Tabs, Folders, MinDuration, Sort, Crossfade 
 @Composable
 fun SettingsScreen(libraryVm: LibraryViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val s by AppSettings.settings.collectAsStateWithLifecycle()
     val folders by libraryVm.allFolders.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
@@ -141,6 +143,11 @@ fun SettingsScreen(libraryVm: LibraryViewModel, onBack: () -> Unit) {
 
             SettingsSection(R.string.settings_section_about)
             SettingsRow(stringResource(R.string.app_name), stringResource(R.string.settings_version, version), onClick = null)
+            val donateUrl = stringResource(R.string.donate_url)
+            SettingsRow(stringResource(R.string.settings_support), stringResource(R.string.settings_support_summary)) {
+                // No browser installed is the only way this fails; there's nothing useful to show then.
+                runCatching { uriHandler.openUri(donateUrl) }
+            }
         }
     }
 

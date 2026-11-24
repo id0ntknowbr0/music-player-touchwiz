@@ -131,6 +131,14 @@ Graphics and videos for sharing the app are in [`docs/promo`](docs/promo):
 
 They're built from the demo-library screenshots by `tools/promo/make_promo.py` (Pillow, NumPy and imageio-ffmpeg); see the script's header to rebuild them.
 
+## Support
+
+The app is free and always will be. If you enjoy it and want to say thanks, you can buy me a coffee:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/idontkn0wbro)
+
+From the next release, the same link is also in the app under **Settings → About → Support the app**.
+
 ## Disclaimer
 
 This is an unofficial fan project, not affiliated with or endorsed by Samsung.
@@ -143,6 +151,6 @@ The source code is released under the [MIT License](LICENSE). The license covers
 
 ## Download
 
-**[Download MusicPlayer-v4.2.3.apk](https://github.com/id0ntknowbr0/music-player-touchwiz/releases/download/v4.2.3/MusicPlayer-v4.2.3.apk)**, or see the [latest release](https://github.com/id0ntknowbr0/music-player-touchwiz/releases/latest) for what's new.
+**[Download MusicPlayer-v4.2.4.apk](https://github.com/id0ntknowbr0/music-player-touchwiz/releases/download/v4.2.4/MusicPlayer-v4.2.4.apk)**, or see the [latest release](https://github.com/id0ntknowbr0/music-player-touchwiz/releases/latest) for what's new.
 
 It installs on Android 11 or newer; you'll need to allow installing from unknown sources. Updates install directly over v4.1 and later.

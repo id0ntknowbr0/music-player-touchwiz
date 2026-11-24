@@ -338,6 +338,9 @@
     <string name="settings_haptics_summary">Vibrates on button presses, long-presses, seeking and the A–Z index.</string>
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version %1$s</string>
+    <string name="settings_support">Support the app</string>
+    <string name="settings_support_summary">Buy me a coffee on Ko-fi. The app stays free either way.</string>
+    <string name="donate_url" translatable="false">https://ko-fi.com/idontkn0wbro</string>
 
     <!-- Playlist import / export -->
     <string name="imported_playlist_default">Imported playlist</string>
