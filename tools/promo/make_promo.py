@@ -270,8 +270,8 @@ FEATURE_CARDS = [
      "Songs, albums, artists, genres, folders and\nplaylists, with a fast A-Z index bar."),
     ("lyrics", "lyrics", "Synced lyrics over\nthe album art",
      "Import .lrc files, read embedded lyrics, or\nsearch online, only if you allow it."),
-    ("music_square", "music_square", "Pick a mood,\nget a playlist",
-     "Music Square places songs on a mood grid.\nThe analysis runs on your phone."),
+    ("music_square", "music_square", "Tap a mood,\nhear it play",
+     "Music Square sorts your songs by mood.\nThe analysis runs on your phone."),
     ("widgets", "widgets", "Three widgets for\nyour home screen",
      "4x2 with large album art, 4x1 and a\n1x1 play/pause button."),
 ]
@@ -335,7 +335,7 @@ class Video:
     CAPTIONS = {
         "now": ("The classic look", "Shuffle, repeat, A-B repeat and a queue,\nin the layout you remember."),
         "library": ("Your whole library, offline", "Songs, albums, artists, genres, folders,\nplaylists and a fast A-Z index."),
-        "square": ("Pick a mood, get a playlist", "Drag across the Music Square.\nThe analysis runs on your phone."),
+        "square": ("Tap a mood, hear it play", "Tap or drag across the Music Square.\nThe analysis runs on your phone."),
         "lyrics": ("Synced lyrics", "Over the album art, line by line.\nImport .lrc or search online."),
         "widgets": ("Home-screen widgets", "4x2, 4x1 and 1x1, in the classic style."),
     }

@@ -299,8 +299,8 @@ open class ShowcaseScreens {
     }
 
     /**
-     * Frames for the promo video (build/showcase/promo/): squares on the Music Square lighting up
-     * one at a time, as if dragged across. Only at the normal font size.
+     * Frames for the promo video (build/showcase/promo/): squares on the Music Square being
+     * pressed one at a time, as if dragged across. Only at the normal font size.
      */
     @Test
     fun musicSquareSteps() {
@@ -309,8 +309,10 @@ open class ShowcaseScreens {
             s.id to MoodFeatures(tagsRead = true, analysed = true, tempo = 70f + (s.id * 37 % 110),
                 rmsDb = -26f + (s.id * 13 % 18), brightness = (s.id * 29 % 100) / 100f)
         })
-        // A drag along the middle row, then down: (1,2) (2,2) (3,2) (3,3) (3,4).
-        val path = listOf(11, 12, 13, 18, 23)
+        // A drag along the middle row, then down, as seen on screen (column, row):
+        // (1,2) (2,2) (3,2) (3,3) (3,4). On screen, column = joy and row 0 = most exciting,
+        // so the cell index is column * 5 + (4 - row).
+        val path = listOf(1 to 2, 2 to 2, 3 to 2, 3 to 3, 3 to 4).map { (c, r) -> c * 5 + (4 - r) }
         var step by androidx.compose.runtime.mutableIntStateOf(0)
         screen {
             S4Theme {
