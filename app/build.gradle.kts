@@ -22,8 +22,8 @@ android {
         applicationId = "dev.s4music.player"
         minSdk = 30          // Android 11
         targetSdk = 35
-        versionCode = 12
-        versionName = "4.2.4"
+        versionCode = 13
+        versionName = "4.2.5"
     }
 
     signingConfigs {
