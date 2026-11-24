@@ -1,7 +1,6 @@
 package dev.s4music.player.data
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -85,11 +84,13 @@ class MoodWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             )
         }
 
-        /** Decodes and measures every song not analysed yet. Waits while the battery is low. */
+        /**
+         * Decodes and measures every song not analysed yet. Runs on its own whenever Music Square
+         * opens; songs already analysed are skipped, so only new music is looked at.
+         */
         fun startAnalysis(context: Context) {
             val request = OneTimeWorkRequestBuilder<MoodWorker>()
                 .setInputData(workDataOf(KEY_ANALYSE to true))
-                .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
                 .build()
             workManager(context)?.enqueueUniqueWork(FULL, ExistingWorkPolicy.KEEP, request)
         }

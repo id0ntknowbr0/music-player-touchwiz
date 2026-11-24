@@ -33,8 +33,9 @@ The original app's behaviour, layout and colours were studied from its APK, and 
 - **Settings:** choose tabs, folders to scan, hide short tracks (voice notes, ringtones), default sort order
 
 **Music Square**
-- The S4's 5×5 mood grid (calm ↔ exciting, passionate ↔ joyful): tap a square or drag across several to make a playlist for your mood
-- Songs are placed by genre and BPM tags; an optional on-device analysis (tempo, level, brightness) places the rest. Nothing leaves the phone.
+- The S4's 5×5 mood grid, styled like the original: Exciting at the top, Calm at the bottom, Passionate on the left, Joyful on the right
+- Tap a square and its songs start playing; drag across several squares to play them all. Pressed squares glow until you pick another; an empty one says no songs match that mood
+- Songs are placed by genre and BPM tags plus an automatic on-device analysis (tempo, level, brightness). Nothing leaves the phone.
 
 **Now Playing**
 - The TouchWiz layout with shuffle, repeat, A-B repeat, seek bar, press-and-hold fast scrub, and a queue view

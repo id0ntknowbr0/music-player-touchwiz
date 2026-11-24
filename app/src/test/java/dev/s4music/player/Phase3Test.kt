@@ -86,6 +86,31 @@ class Phase3Test {
     }
 
     @Test
+    fun squareLightsOnlyWhenItsSongsPlay() {
+        fun s(id: Long) = Song(id, "T$id", "A", 1, "Al", 1, "", 2013, 1, 200_000, "Music", 0, "/x/$id.mp3", "$id.mp3")
+        val corner = MoodCell(0, 0).index
+        val diagonal = MoodCell(1, 1).index
+        val far = MoodCell(4, 4).index
+        val grid = dev.s4music.player.ui.MoodGrid(mapOf(
+            corner to listOf(s(1), s(2), s(3)),
+            diagonal to listOf(s(4), s(5)),
+            far to (100L until 130L).map { s(it) },
+        ), 0)
+        // A square with songs plays only its own songs and is the only one lit.
+        val own = dev.s4music.player.ui.moodPick(grid, listOf(corner))
+        assertEquals(setOf(1L, 2L, 3L), own.songs.map { it.id }.toSet())
+        assertEquals(setOf(corner), own.lit)
+        // An empty square doesn't borrow songs from its neighbours: nothing plays, nothing lights.
+        val empty = dev.s4music.player.ui.moodPick(grid, listOf(MoodCell(1, 0).index))
+        assertTrue(empty.songs.isEmpty() && empty.lit.isEmpty())
+        // Dragging across a full and an empty square lights only the full one.
+        assertEquals(setOf(far), dev.s4music.player.ui.moodPick(grid, listOf(far, MoodCell(3, 3).index)).lit)
+        // Nothing placed anywhere: nothing plays, nothing lights.
+        val none = dev.s4music.player.ui.moodPick(dev.s4music.player.ui.MoodGrid(emptyMap(), 5), listOf(corner))
+        assertTrue(none.songs.isEmpty() && none.lit.isEmpty())
+    }
+
+    @Test
     fun findsTempoOfAClickTrack() {
         val rate = 22_050
         val seconds = 12

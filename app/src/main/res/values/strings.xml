@@ -257,23 +257,10 @@
     <string name="square_joyful">Joyful</string>
     <string name="square_calm">Calm</string>
     <string name="square_exciting">Exciting</string>
-    <string name="square_description">Music square mood grid. Tap or drag across squares to choose songs.</string>
-    <string name="square_hint">Tap a square, or drag across several, to make a playlist for your mood.</string>
-    <plurals name="square_selected">
-        <item quantity="one">%d song matches</item>
-        <item quantity="other">%d songs match</item>
-    </plurals>
-    <plurals name="square_unclassified">
-        <item quantity="one">%d song has no genre or tempo yet, so it isn’t placed.</item>
-        <item quantity="other">%d songs have no genre or tempo yet, so they aren’t placed.</item>
-    </plurals>
-    <plurals name="square_analyse">
-        <item quantity="one">Analyse %d song for better results</item>
-        <item quantity="other">Analyse %d songs for better results</item>
-    </plurals>
+    <string name="square_description">Music square mood grid. Tap a square, or drag across several, to play music for that mood.</string>
+    <string name="square_no_songs">No songs match this mood.</string>
     <string name="square_analysing">Analysing songs… %1$d of %2$d</string>
-    <string name="square_analysis_waiting">Analysis will start when the battery isn’t low…</string>
-    <string name="square_stop">Stop</string>
+    <string name="square_analysis_waiting">Getting ready to analyse songs…</string>
 
     <!-- Set as -->
     <string name="set_as">Set as</string>
